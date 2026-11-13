@@ -1,0 +1,10 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {enqueue,nextBatch,markSending,acknowledge,recoverInterrupted,queueSummary} from '../src/sync-queue.js';
+const event={clientEventId:'evt-1',barcode:'IRM-BX-1002'};
+test('enqueue is idempotent by client event id',()=>{const q=enqueue([],event);assert.equal(enqueue(q,event).length,1)});
+test('acknowledged events are not sent again',()=>{const q=acknowledge(markSending(enqueue([],event),['evt-1']),'evt-1','accepted',100);assert.equal(nextBatch(q,200).length,0);assert.equal(queueSummary(q).confirmed,1)});
+test('duplicate server acknowledgement is successful',()=>{const q=acknowledge(enqueue([],event),'evt-1','already_accepted',100);assert.equal(q[0].status,'confirmed')});
+test('retry uses bounded backoff',()=>{let q=acknowledge(enqueue([],event),'evt-1','retry',100);assert.equal(q[0].nextAttemptAt,1100);assert.equal(nextBatch(q,1099).length,0);assert.equal(nextBatch(q,1100).length,1)});
+test('interrupted sends can be recovered',()=>{const q=recoverInterrupted(markSending(enqueue([],event),['evt-1']));assert.equal(q[0].status,'pending')});
+test('conflict requires explicit resolution',()=>{const q=acknowledge(enqueue([],event),'evt-1','conflict',100);assert.equal(nextBatch(q,1000).length,0)});
