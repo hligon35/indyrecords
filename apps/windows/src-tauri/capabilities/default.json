@@ -1,0 +1,10 @@
+{
+  "identifier": "default",
+  "description": "Default application window permissions",
+  "windows": [
+    "main"
+  ],
+  "permissions": [
+    "core:default"
+  ]
+}
