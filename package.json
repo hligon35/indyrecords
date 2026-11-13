@@ -1,0 +1,14 @@
+{
+  "name": "irm-rms-prototype",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev:api": "wrangler dev",
+    "db:local": "wrangler d1 migrations apply irm-rms-demo --local",
+    "db:remote": "wrangler d1 migrations apply irm-rms-demo --remote",
+    "test": "node --test tests/*.test.js"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  }
+}
