@@ -3,6 +3,8 @@ const json=(value,status=200,headers={})=>new Response(JSON.stringify(value),{st
 const fail=(message,status)=>json({error:message},status);
 const allowedOperations=new Set(['Box Retrieval','Box Withdrawal','Box Destruction','File Retrieval','File Withdrawal','File Destruction','Box Refile','Staged Files','File Refile']);
 const MAX_SEARCH=100;
+const INBOUND_OPERATIONS=new Set(['Box Refile','Staged Files','File Refile']);
+const OUTBOUND_OPERATIONS=new Set(['Box Retrieval','Box Withdrawal','Box Destruction','File Retrieval','File Withdrawal','File Destruction']);
 function requireAuth(request,env){
   // A single secret is intentionally a DEVELOPMENT ONLY safeguard.
   // Replace with authenticated user sessions and scoped RBAC before a pilot.
@@ -40,13 +42,16 @@ async function handler(request,env){
     const {clientEventId,barcode,operation,mode,occurredAt,workOrderId}=body||{};
     if(![clientEventId,barcode,operation,mode,occurredAt].every(x=>typeof x==='string'&&x.length>0&&x.length<=120))return fail('Missing or invalid scan fields',400);
     if(!allowedOperations.has(operation)||!['inbound','outbound'].includes(mode)||!Number.isFinite(Date.parse(occurredAt)))return fail('Invalid operation or timestamp',400);
+    if((mode==='inbound'&&!INBOUND_OPERATIONS.has(operation))||(mode==='outbound'&&!OUTBOUND_OPERATIONS.has(operation)))return fail('Operation not allowed in selected mode',400);
+    if(!/^[A-Za-z0-9][A-Za-z0-9:_-]{0,119}$/.test(clientEventId)||!/^[A-Za-z0-9][A-Za-z0-9-]{0,99}$/.test(barcode))return fail('Invalid event identifier or barcode',400);
+    if(Math.abs(Date.now()-Date.parse(occurredAt))>7*24*60*60*1000)return fail('Timestamp outside permitted demo window',400);
     // Destruction is deliberately blocked until approved authorization and custody workflow exists.
     if(operation.includes('Destruction'))return fail('Destruction requires a separately approved workflow',403);
     const existing=await env.DB.prepare('SELECT id FROM scan_events WHERE client_event_id=?').bind(clientEventId).first();
     if(existing)return json({status:'already_accepted',id:existing.id});
     const record=await env.DB.prepare('SELECT id,kind FROM records WHERE barcode=?').bind(barcode).first();
     if(!record)return fail('Barcode not found',404);
-    if((operation.startsWith('Box')&&record.kind!=='Box')||(operation.startsWith('File')&&record.kind!=='File'))return fail('Record type mismatch',409);
+    if((operation.startsWith('Box')&&record.kind!=='Box')||(operation.startsWith('File')&&record.kind!=='File')||(operation==='Staged Files'&&record.kind!=='File'))return fail('Record type mismatch',409);
     // No work order validation exists yet; reject order-linked mutations rather than pretend to verify them.
     if(workOrderId)return fail('Work-order validation not yet implemented',501);
     const id=crypto.randomUUID();
