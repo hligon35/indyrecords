@@ -1,0 +1,11 @@
+name = "irm-rms-demo-api"
+main = "api/worker.js"
+compatibility_date = "2026-11-01"
+
+# Local preview only. Before deploying, create a dedicated D1 database
+# and replace the placeholder ID below. Never connect company data.
+[[d1_databases]]
+binding = "DB"
+database_name = "irm-rms-demo"
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "migrations"

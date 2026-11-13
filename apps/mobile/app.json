@@ -1,0 +1,19 @@
+{
+  "expo": {
+    "name": "IRM RMS Prototype",
+    "slug": "irm-rms-prototype",
+    "scheme": "irmrmsdemo",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.alphazonelabs.irmrmsdemo"
+    },
+    "android": {
+      "package": "com.alphazonelabs.irmrmsdemo",
+      "permissions": []
+    },
+    "plugins": []
+  }
+}
