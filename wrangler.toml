@@ -1,4 +1,5 @@
-name = "irm-rms-demo-api"
+# wrangler.toml
+name = "indyrecords"
 main = "api/worker.js"
 compatibility_date = "2026-11-01"
 
@@ -7,5 +8,5 @@ compatibility_date = "2026-11-01"
 [[d1_databases]]
 binding = "DB"
 database_name = "irm-rms-demo"
-database_id = "00000000-0000-0000-0000-000000000000"
+database_id = "5ddfa445-4e9c-49f8-8989-01b601e4fa16"
 migrations_dir = "migrations"
