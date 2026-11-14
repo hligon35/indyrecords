@@ -38,6 +38,8 @@ async function handler(request,env){
     return row?json(row):fail('Record not found',404);
   }
   if(path==='/v1/scans'&&request.method==='POST'){
+    // Fail closed on deployments. Only explicitly enabled local synthetic testing may write.
+    if(env.DEMO_WRITES_ENABLED!=='true')return fail('Demo scan writes are disabled',403);
     let body;try{body=await request.json()}catch{return fail('Invalid JSON',400)}
     const {clientEventId,barcode,operation,mode,occurredAt,workOrderId}=body||{};
     if(![clientEventId,barcode,operation,mode,occurredAt].every(x=>typeof x==='string'&&x.length>0&&x.length<=120))return fail('Missing or invalid scan fields',400);
