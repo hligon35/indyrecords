@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {handler} from '../api/worker.js';
 function env(record={id:'r2',kind:'Box'}){
  const calls=[];
- const DB={prepare(sql){const q={bind(...params){calls.push({sql,params});return q},async first(){if(sql.includes('client_event_id=?'))return null;if(sql.includes('WHERE barcode=?'))return record;return null},async all(){return {results:[]}},async run(){return {success:true}}};return q}};
+ const DB={prepare(sql){const q={bind(...params){if(!sql.includes("access_audit"))calls.push({sql,params});return q},async first(){if(sql.includes('client_event_id=?'))return null;if(sql.includes('WHERE barcode=?'))return record;return null},async all(){return {results:[]}},async run(){return {success:true}}};return q}};
  return {DB,DEMO_API_TOKEN:'local-secret',DEMO_WRITES_ENABLED:'true',calls};
 }
 function req(path,{method='GET',body,token='local-secret'}={}){return new Request('http://localhost'+path,{method,headers:{authorization:'Bearer '+token,...(body?{'content-type':'application/json'}:{})},body:body?JSON.stringify(body):undefined})}
@@ -19,5 +19,5 @@ test('invalid barcode is rejected before DB lookup',async()=>{const e=env();cons
 
 test('scan writes disabled by default even with a valid token',async()=>{const e=env();delete e.DEMO_WRITES_ENABLED;const r=await handler(req('/v1/scans',{method:'POST',body:valid}),e);assert.equal(r.status,403);assert.equal(e.calls.length,0)});
 
-test('scan writes denied on public host even with local flag',async()=>{const e=env();const request=new Request('https://example.test/v1/scans',{method:'POST',headers:{authorization:'Bearer local-secret','content-type':'application/json'},body:JSON.stringify(valid)});const r=await handler(request,e);assert.equal(r.status,403);assert.equal(e.calls.length,0)});
+test('scan writes denied on public host even with local flag',async()=>{const e=env();const request=new Request('https://example.test/v1/scans',{method:'POST',headers:{authorization:'Bearer local-secret','content-type':'application/json'},body:JSON.stringify(valid)});const r=await handler(request,e);assert.equal(r.status,401);assert.equal(e.calls.length,0)});
 test('inventory rejects invalid limits before database access',async()=>{for(const limit of ['-1','101','1.5','NaN']){const e=env();const r=await handler(req('/v1/records?limit='+encodeURIComponent(limit)),e);assert.equal(r.status,400);assert.equal(e.calls.length,0)}});

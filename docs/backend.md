@@ -1,29 +1,14 @@
-# Phase 2: D1 demo backend
+# Local synthetic Worker API
 
-This adds an **isolated API foundation**, not a production system. The existing browser UI remains local-only and is **not yet wired to the API**. This avoids misrepresenting local demo confirmations as durable server commits.
+1. Install Node 24+ and run npm ci.
+2. Run npm run db:local. The placeholder database binding is sufficient for local emulation; do not replace it with an IRM database.
+3. Seed fictional inventory with npx wrangler d1 execute irm-rms-demo --local --file scripts/seed-demo.sql.
+4. Set a random DEMO_API_TOKEN in an untracked .dev.vars file for loopback-only testing, or configure the verified identity provider described in authentication-plan.md.
+5. Set READONLY_ALLOWED_ORIGINS to a comma-separated list of exact frontend origins for cross-origin calls. Examples: http://127.0.0.1:4173 and http://tauri.localhost. No wildcard or ambient cookie credentials are supported.
+6. Run npm run dev:api. Keep the API on loopback and use synthetic fixtures only.
 
-## Setup
-1. `npm install`
-2. `npx wrangler d1 create irm-rms-demo` and copy the generated database ID into `wrangler.toml`.
-3. Set `DEMO_API_TOKEN` in a local `.dev.vars` file to a long random token. Do not commit it.
-4. `npm run db:local`
-5. `npm run dev:api`
-6. `npm test`
+Routes: GET /health, GET /v1/session, POST /v1/session, DELETE /v1/session, GET /v1/records?q=&limit=&cursor=, GET /v1/records/:barcode, GET /v1/reports/summary. Scan POST /v1/scans requires explicit DEMO_WRITES_ENABLED=true and a loopback hostname, even with verified user credentials. No record table updates are enabled.
 
-No real customer data should be imported. The migration creates tables but no seed records; populate only with invented records through a future fixture script.
+workers_dev and preview_urls are disabled. No Worker was deployed. Keep the database ID placeholder until separately approved private synthetic infrastructure exists. The development shared token must never be exposed publicly or included in a client build.
 
-## Routes
-- `GET /health`: public liveness check
-- `GET /v1/records?q=&limit=&cursor=`: authenticated, paginated lookup
-- `GET /v1/records/:barcode`: exact barcode lookup
-- `POST /v1/scans`: idempotent event insert for synthetic demo operations
-- `GET /v1/reports/summary`: grouped summary
-
-All `/v1` routes require `Authorization: Bearer <DEMO_API_TOKEN>`. **This shared token is not suitable for production or a customer-facing browser.** Do not embed it in frontend code. No role-based access, user identity, custody workflow, export queue or live scanner adapter exists yet. The API rejects destruction and work-order-linked mutations pending those safeguards.
-
-## Deployment caution
-The placeholder database ID intentionally prevents deployment without explicit setup. Do not deploy this API publicly until session-based authentication, scoped permissions, rate limiting, audit and abuse controls are implemented. Never place a shared API token in a browser bundle.
-
-## Scan write safety flag
-
-Scan submissions are **disabled by default**, including when a development token is present. Only a locally controlled synthetic-data test environment may set `DEMO_WRITES_ENABLED=true`. Never set this flag on an Internet-accessible deployment or against actual company records. This flag is not a replacement for user authentication, permissions, audit trails or approval workflows.
+Run npm test for policy, cryptographic JWT, SQL-backed authorization/audit/session and offline sync tests. The SQL tests use Node SQLite with all migrations applied, not remote D1. Worker packaging is npx wrangler deploy --dry-run; this does not deploy.

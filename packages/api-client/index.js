@@ -12,7 +12,7 @@ export function createApiClient({baseUrl,getAccessToken,fetchImpl=fetch,readOnly
  if(typeof getAccessToken!=='function')throw Error('getAccessToken callback required');
  const base=parsed.origin;
  async function request(path,{method='GET',body,signal}={}){
-  if(readOnly && method!=='GET')throw new ApiError('Read-only connection: record modifications are disabled',403);
+  if(readOnly && method!=='GET' && !(path==='/v1/session'&&['POST','DELETE'].includes(method)))throw new ApiError('Read-only connection: record modifications are disabled',403);
   const token=await getAccessToken();
   if(!token)throw new ApiError('Sign in required',401);
   const response=await fetchImpl(base+path,{method,signal,redirect:'error',credentials:'omit',cache:'no-store',headers:{authorization:'Bearer '+token,...(body?{'content-type':'application/json'}:{})},body:body?JSON.stringify(body):undefined});
@@ -21,6 +21,9 @@ export function createApiClient({baseUrl,getAccessToken,fetchImpl=fetch,readOnly
   return payload;
  }
  return {
+  beginSession:()=>request('/v1/session',{method:'POST'}),
+  endSession:()=>request('/v1/session',{method:'DELETE'}),
+  getSession:()=>request('/v1/session'),
   searchRecords:({q='',limit=25,cursor='',signal}={})=>request('/v1/records?'+new URLSearchParams({q:String(q),limit:String(limit),cursor:String(cursor)}),{signal}),
   getRecord:(barcode)=>request('/v1/records/'+encodeURIComponent(barcode)),
   submitScan:(scan)=>request('/v1/scans',{method:'POST',body:scan}),
