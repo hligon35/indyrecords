@@ -4,10 +4,10 @@
   "version": "0.1.0",
   "identifier": "com.alphazonelabs.irmrms.prototype",
   "build": {
-    "frontendDist": "../../../",
+    "frontendDist": "../../../dist/web",
     "devUrl": "http://localhost:4173",
     "beforeDevCommand": "",
-    "beforeBuildCommand": ""
+    "beforeBuildCommand": "node ../../scripts/build-web.mjs"
   },
   "app": {
     "windows": [
