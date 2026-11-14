@@ -20,8 +20,11 @@ async function handler(request,env){
   if(!requireAuth(request,env))return fail('Unauthorized demo API request',401);
   if(path==='/v1/records'&&request.method==='GET'){
     const q=(url.searchParams.get('q')||'').trim().slice(0,100);
-    const limit=Math.min(MAX_SEARCH,Math.max(1,Number(url.searchParams.get('limit'))||25));
-    const cursor=(url.searchParams.get('cursor')||'').slice(0,100);
+    const requestedLimit=url.searchParams.get('limit')||'25';
+    if(!/^[0-9]{1,3}$/.test(requestedLimit)||Number(requestedLimit)<1||Number(requestedLimit)>MAX_SEARCH)return fail('Invalid page limit',400);
+    const limit=Number(requestedLimit);
+    const cursor=url.searchParams.get('cursor')||'';
+    if(cursor.length>100||/[\u0000-\u001f]/.test(cursor))return fail('Invalid pagination cursor',400);
     const pattern='%'+q.replace(/[\\%_]/g,'\\$&')+'%';
     const result=await env.DB.prepare(`SELECT r.id,r.barcode,r.kind,r.status,c.name AS customer,l.label AS location
       FROM records r JOIN customers c ON c.id=r.customer_id LEFT JOIN locations l ON l.id=r.location_id
@@ -39,7 +42,7 @@ async function handler(request,env){
   }
   if(path==='/v1/scans'&&request.method==='POST'){
     // Fail closed on deployments. Only explicitly enabled local synthetic testing may write.
-    if(env.DEMO_WRITES_ENABLED!=='true')return fail('Demo scan writes are disabled',403);
+    if(env.DEMO_WRITES_ENABLED!=='true'||!['localhost','127.0.0.1'].includes(url.hostname))return fail('Demo scan writes are disabled outside local development',403);
     let body;try{body=await request.json()}catch{return fail('Invalid JSON',400)}
     const {clientEventId,barcode,operation,mode,occurredAt,workOrderId}=body||{};
     if(![clientEventId,barcode,operation,mode,occurredAt].every(x=>typeof x==='string'&&x.length>0&&x.length<=120))return fail('Missing or invalid scan fields',400);
