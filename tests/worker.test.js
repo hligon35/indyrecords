@@ -18,3 +18,6 @@ test('work-order-linked scans fail closed',async()=>{const r=await handler(req('
 test('invalid barcode is rejected before DB lookup',async()=>{const e=env();const r=await handler(req('/v1/scans',{method:'POST',body:{...valid,barcode:'../../bad'}}),e);assert.equal(r.status,400);assert.equal(e.calls.length,0)});
 
 test('scan writes disabled by default even with a valid token',async()=>{const e=env();delete e.DEMO_WRITES_ENABLED;const r=await handler(req('/v1/scans',{method:'POST',body:valid}),e);assert.equal(r.status,403);assert.equal(e.calls.length,0)});
+
+test('scan writes denied on public host even with local flag',async()=>{const e=env();const request=new Request('https://example.test/v1/scans',{method:'POST',headers:{authorization:'Bearer local-secret','content-type':'application/json'},body:JSON.stringify(valid)});const r=await handler(request,e);assert.equal(r.status,403);assert.equal(e.calls.length,0)});
+test('inventory rejects invalid limits before database access',async()=>{for(const limit of ['-1','101','1.5','NaN']){const e=env();const r=await handler(req('/v1/records?limit='+encodeURIComponent(limit)),e);assert.equal(r.status,400);assert.equal(e.calls.length,0)}});
