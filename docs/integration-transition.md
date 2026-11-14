@@ -49,3 +49,7 @@ The precise product versions, vendors' interfaces, data ownership, export format
 - Which system owns each business object and when does it update?
 - What data use, retention, security and licensing requirements apply?
 - Can vendor-provided sandbox credentials and synthetic test datasets be provisioned?
+
+## Synthetic adapter delivery (phases 13–15)
+
+At the user's direction, versioned synthetic CSV adapters now stage Andrew/Q-Shred-shaped fixtures, persist provenance/rejections and reconcile customer-qualified records. These are not verified vendor interfaces and make no external network calls. See [current implementation](phases-13-15.md) and fixtures/integrations. Real product/version interface discovery and authorization remain required.

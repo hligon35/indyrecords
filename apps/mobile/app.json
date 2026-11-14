@@ -14,6 +14,6 @@
       "package": "com.alphazonelabs.irmrmsdemo",
       "permissions": []
     },
-    "plugins": []
+    "plugins": ["expo-secure-store", "expo-web-browser"]
   }
 }

@@ -20,6 +20,7 @@ export async function warehouseRoute(request,env,principal,readBody){
   return response(view(row?JSON.parse(row.payload):seedWarehouse(customerId)));
  }
  if(url.pathname!=='/v1/sandbox/commands'||request.method!=='POST')return response({error:'Not found'},404);
+ if(['create_order','register_record'].includes(command.type)){const customer=await env.DB.prepare('SELECT active FROM customer_profiles WHERE customer_id=?').bind(customerId).first();if(customer?.active===0)return response({error:'Customer profile is archived; new intake/orders are disabled'},409)}
  const seed=seedWarehouse(customerId);
  await env.DB.prepare('INSERT OR IGNORE INTO sandbox_workspaces(customer_id,payload) VALUES(?,?)').bind(customerId,JSON.stringify(seed)).run();
  for(let attempt=0;attempt<3;attempt++){

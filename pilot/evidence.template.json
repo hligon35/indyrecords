@@ -1,0 +1,67 @@
+{
+  "commit": "REPLACE_WITH_TESTED_COMMIT",
+  "checks": {
+    "localD1": {
+      "passed": false,
+      "reference": null,
+      "sha256": null
+    },
+    "androidBundle": {
+      "passed": false,
+      "reference": null,
+      "sha256": null
+    },
+    "zebraModule": {
+      "passed": false,
+      "reference": null,
+      "sha256": null
+    },
+    "windowsInstaller": {
+      "passed": false,
+      "reference": null,
+      "sha256": null
+    },
+    "androidInstaller": {
+      "passed": false,
+      "reference": null,
+      "sha256": null
+    }
+  },
+  "evidence": {
+    "identityProvider": {
+      "status": "pending",
+      "reviewer": null,
+      "reference": null
+    },
+    "vendorContracts": {
+      "status": "pending",
+      "reviewer": null,
+      "reference": null
+    },
+    "zebraDevice": {
+      "status": "pending",
+      "reviewer": null,
+      "reference": null
+    },
+    "windowsRuntime": {
+      "status": "pending",
+      "reviewer": null,
+      "reference": null
+    },
+    "signing": {
+      "status": "pending",
+      "reviewer": null,
+      "reference": null
+    },
+    "restoreDrill": {
+      "status": "pending",
+      "reviewer": null,
+      "reference": null
+    },
+    "managementApproval": {
+      "status": "pending",
+      "reviewer": null,
+      "reference": null
+    }
+  }
+}

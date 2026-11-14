@@ -16,3 +16,9 @@ Run npm test for policy, cryptographic JWT, SQL-backed authorization/audit/sessi
 ## Phases 9–12 synthetic workflows
 
 Apply migration 0004 locally. Set SYNTHETIC_WORKFLOWS_ENABLED=true only in the local .dev.vars file. A verified user session and explicit customer grant are required; the shared development token cannot access warehouse workspaces. See [phases 9–12](phases-9-12.md) for routes and commands. Source inventory is unchanged by the warehouse sandbox.
+
+## Management, reports and synthetic adapters (phases 13–15)
+
+Apply migration 0005 only to the local synthetic D1 database. Verified, explicitly scoped users can read GET /v1/management/report with customerId, source, type, format and validated search/date/status/location filters. Source inventory remains read-only. Customer metadata and staging jobs require localhost/127.0.0.1 plus SYNTHETIC_MANAGEMENT_ENABLED=true; their permissions are distinct from inventory reads. Customer metadata uses optimistic versions and never rewrites source customer records.
+
+GET/POST /v1/management/customers manages only the four fictional customer profiles. GET/POST /v1/management/integrations lists/stages scoped synthetic CSV exports; GET /v1/management/integrations/:id retrieves a persisted review snapshot. Shared-token principals cannot use management routes. Every response remains subject to persistent allow/deny audit logging. See phases-13-15.md for contracts, limits, native authentication, security checks and pilot gates. No real vendor endpoints are enabled.

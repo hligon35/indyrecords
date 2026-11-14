@@ -21,6 +21,12 @@ export function createApiClient({baseUrl,getAccessToken,fetchImpl=fetch,readOnly
   return payload;
  }
  return {
+  getCustomerProfiles:()=>request('/v1/management/customers'),
+  saveCustomerProfile:input=>request('/v1/management/customers',{method:'POST',body:input}),
+  getManagementReport:options=>request('/v1/management/report?'+new URLSearchParams({...options,format:'json'})),
+  getIntegrationJobs:customerId=>request('/v1/management/integrations?'+new URLSearchParams({customerId})),
+  getIntegrationJob:(customerId,id)=>request('/v1/management/integrations/'+encodeURIComponent(id)+'?'+new URLSearchParams({customerId})),
+  stageIntegration:input=>request('/v1/management/integrations',{method:'POST',body:input}),
   getWorkspace:(customerId)=>request('/v1/sandbox/workspace?'+new URLSearchParams({customerId})),
   submitWarehouseCommand:(customerId,command)=>request('/v1/sandbox/commands',{method:'POST',body:{customerId,command}}),
   beginSession:()=>request('/v1/session',{method:'POST'}),

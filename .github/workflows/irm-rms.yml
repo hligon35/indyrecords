@@ -33,13 +33,15 @@ jobs:
           cache: npm
           cache-dependency-path: apps/mobile/package-lock.json
       - run: npm ci
+      - run: npm audit --audit-level=high
+      - run: npm run test:build-deps
       - run: npm run build:android
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 17
       - run: npx expo prebuild --platform android --no-install
-      - run: ./gradlew :irm-scanner:compileDebugKotlin --no-daemon
+      - run: ./gradlew :app:compileDebugKotlin :irm-scanner:compileDebugKotlin --no-daemon
         working-directory: apps/mobile/android
   windows-build:
     runs-on: windows-latest
@@ -55,5 +57,7 @@ jobs:
           cache-dependency-path: apps/windows/package-lock.json
       - run: rustup update stable
       - run: rustup default stable
+      - run: npm ci
+        working-directory: .
       - run: npm ci
       - run: npm run build

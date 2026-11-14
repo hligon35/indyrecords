@@ -23,6 +23,7 @@ test('existing interface and complete synthetic warehouse round trip remain usab
   const state=JSON.parse(localStorage.getItem('irm-warehouse-c2'));assert.equal(state.records[0].status,'Stored');assert.equal(state.orders[1].status,'closed');assert.equal(state.custody.length,9);
   navigate('remote');
   select('#remote-url').value='https://api.example';select('#remote-token').value='irm_session_ui';await select('#remote-connect').onclick();await select('#remote-fetch').onclick();await select('[data-remote-barcode]').onclick();assert.match(select('#view').textContent,/Record details/);assert.equal(select('#view script'),null);await select('#remote-disconnect').onclick();assert.doesNotMatch(select('#view').textContent,/Record details/);
+  navigate('management');await select('#mg-refresh').onclick();assert.match(select('#view').textContent,/Matching rows/);select('#mg-name').value='Demo managed office';select('#mg-contact').value='demo-office';select('#mg-active').checked=false;await select('#mg-save').onclick();assert.equal(JSON.parse(localStorage.getItem('irm-rms-customer-profiles')).c2.active,false);select('#mg-sample').click();await select('#mg-stage').onclick();assert.match(select('#view').textContent,/Staged without modifying/);navigate('warehouse');select('[data-warehouse-record]').checked=true;select('#warehouse-create').click();await settled();assert.match(select('#view').textContent,/archived/);
   navigate('overview');assert.match(select('#view').textContent,/120/);
  }finally{globalThis.fetch=originalFetch;dom.window.close()}
 });

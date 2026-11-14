@@ -1,3 +1,5 @@
+import {authRateLimit} from './security.js';
+import {managementRoute} from './management.js';
 import {loginRoute} from './login.js';
 import {warehouseRoute} from './warehouse.js';
 import {authenticate,verifyIdentity,digest} from './auth.js';
@@ -9,10 +11,10 @@ const allowedOperations=new Set(['Box Retrieval','Box Withdrawal','Box Destructi
 const MAX_SEARCH=100;
 const INBOUND_OPERATIONS=new Set(['Box Refile','Staged Files','File Refile']);
 const OUTBOUND_OPERATIONS=new Set(['Box Retrieval','Box Withdrawal','Box Destruction','File Retrieval','File Withdrawal','File Destruction']);
-async function scanBody(request){
+async function scanBody(request,maxBytes=4096){
  const reader=request.body?.getReader();if(!reader)throw Error('Invalid JSON');
  const chunks=[];let length=0;
- try{while(true){const {done,value}=await reader.read();if(done)break;length+=value.byteLength;if(length>4096){await reader.cancel();const error=new Error('Scan payload too large');error.status=413;throw error}chunks.push(value)}}finally{reader.releaseLock()}
+ try{while(true){const {done,value}=await reader.read();if(done)break;length+=value.byteLength;if(length>maxBytes){await reader.cancel();const error=new Error('Scan payload too large');error.status=413;throw error}chunks.push(value)}}finally{reader.releaseLock()}
  const buffer=new Uint8Array(length);let offset=0;for(const chunk of chunks){buffer.set(chunk,offset);offset+=chunk.length}
  return JSON.parse(new TextDecoder().decode(buffer));
 }
@@ -27,6 +29,7 @@ async function routes(request,env,principal,localDemo){
     await env.DB.prepare('UPDATE app_sessions SET revoked_at=? WHERE token_hash=?').bind(Date.now(),await digest(token)).run();
     return json({status:'signed_out'});
   }
+  if(path.startsWith('/v1/management/'))return managementRoute(request,env,principal,scanBody);
   if(path.startsWith('/v1/sandbox/'))return warehouseRoute(request,env,principal,scanBody);
   if(!localDemo){
     const permission=path==='/v1/scans'?'scans:create':path==='/v1/reports/summary'?'reports:read':'records:read';
@@ -110,7 +113,9 @@ async function handler(request,env){
  try{
   if(request.headers.has('origin')&&!allowedOrigin(request,env))response=fail('Origin not allowed',403);
   else {
-  if(url.pathname.startsWith('/auth/')){({response,principal}=await loginRoute(request,env,scanBody))}
+  const rateResponse=await authRateLimit(request,env);
+  if(rateResponse)response=rateResponse;
+  else if(url.pathname.startsWith('/auth/')){({response,principal}=await loginRoute(request,env,scanBody))}
   else {
   if(localDemo)principal={id:'demo-api-user',active:true,role:'warehouse',customerIds:[]};
   else {try{principal=await authenticate(request,env)}catch{principal=null}}
