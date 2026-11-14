@@ -1,3 +1,5 @@
+import {validateSyntheticScan} from '../../../packages/integrations/synthetic-scanner.js';
+import {ApiError} from '../../../packages/api-client/index.js';
 // Device-local durable queue. No sensitive company data should be stored in this prototype.
 // expo-sqlite persists rows, but database encryption and secure device provisioning
 // are not configured. Do not use for real customer data.
@@ -8,6 +10,10 @@ async function db(){
  if(!connection){
   connection=SQLite.openDatabaseAsync('irm-rms-demo.db').then(async database=>{
    await database.execAsync(`PRAGMA journal_mode = WAL;
+    CREATE TABLE IF NOT EXISTS demo_sync_receipts (
+      client_event_id TEXT PRIMARY KEY,
+      payload TEXT NOT NULL
+    );
     CREATE TABLE IF NOT EXISTS demo_scan_events (
       client_event_id TEXT PRIMARY KEY,
       barcode TEXT NOT NULL,
@@ -53,3 +59,15 @@ export async function writeQueue(queue){
  });
 }
 export const scanRepository={read:listScans,write:writeQueue};
+
+// A durable on-device synthetic receiver exercises acknowledgement/retry semantics.
+// This never opens a network connection and does not change inventory records.
+export const syntheticSyncApi={async submitScan(event){
+ try{validateSyntheticScan(event)}catch(error){throw new ApiError(error.message,422)}
+ const database=await db();
+ const payload=JSON.stringify([event.barcode,event.operation,event.mode,event.occurredAt]);
+ const result=await database.runAsync('INSERT OR IGNORE INTO demo_sync_receipts(client_event_id,payload) VALUES(?,?)',event.clientEventId,payload);
+ const receipt=await database.getFirstAsync('SELECT payload FROM demo_sync_receipts WHERE client_event_id=?',event.clientEventId);
+ if(receipt.payload!==payload)throw new ApiError('Event identifier reused for different scan',409);
+ return {status:result.changes===1?'accepted':'already_accepted'};
+}};

@@ -1,15 +1,11 @@
-# IRM RMS Mobile (Expo proof of concept)
+# Synthetic Zebra Android scanner
 
-Initial Android/iOS React Native source with a scanner-first warehouse interface and fictional data. This is not a native Zebra DataWedge integration, authenticated API client, durable queue, or production app.
+Run npm ci then npm start from this directory. This Expo app only accepts the fictional barcodes defined in packages/integrations/synthetic-scanner.js. It stores scans in device SQLite before showing them as pending.
 
-## Development
-```powershell
-cd apps/mobile
-npm install
-npx expo-doctor
-npx expo start
-```
+Configure a DataWedge profile associated with the installed development app: enable Barcode Input and Keystroke Output, and append an Enter key event through Basic Data Formatting. Keep Intent Output disabled for this keyboard-wedge path to avoid duplicate delivery. The scan field retains focus after processing. Use a single-line field and Enter-as-event mode; exact behavior needs validation on the target Zebra model/DataWedge version. No native intent receiver or automatic DataWedge provisioning is included.
 
-The initial scaffold targets Expo SDK 54; check compatible versions with `npx expo install --check` and upgrade before distributing. Native barcode intents require a custom Android module and a development build, not Expo Go.
+The Synchronize synthetic queue button runs the shared single-flight coordinator against an on-device SQLite receipt simulator. This does not contact a server or change remote inventory. Stable client IDs, durable receipts, duplicate acknowledgement, interrupted-send recovery, conflicts and bounded retry scheduling are exercised. A confirmed row means acknowledged by the local simulator only. Confirmations are never presented as remote API acceptance.
 
-Use fictional barcode `IRM-BX-1002` for Box Retrieval or `IRM-FL-1001` for File Retrieval. Events are held in memory only and disappear on restart. Do not use real IRM data or company devices without authorization.
+The UI serializes scanning and synchronization, rejects unknown records and wrong record types, and prevents duplicate pending scans for the same barcode and operation. Receipt payload mismatches become conflicts. Real records, device encryption, remote login, native intent integration and operational custody workflows remain out of scope. Physical hardware testing and a release APK are still required before device rollout.
+
+Reference: [Zebra DataWedge keystroke output](https://techdocs.zebra.com/datawedge/latest/guide/output/keystroke/).
