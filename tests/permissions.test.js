@@ -1,0 +1,10 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {can,assertPermission,redactPrincipal} from '../packages/security/permissions.js';
+const viewer={id:'user-1',role:'viewer',active:true,customerIds:['customer-a']};
+test('default deny missing and unverified principals',()=>{assert.equal(can(null,'records:read'),false);assert.equal(can({role:'admin',active:true},'users:manage'),false);assert.equal(can({...viewer,active:false},'records:read'),false)});
+test('viewer can read but cannot mutate',()=>{assert.equal(can(viewer,'records:read'),true);assert.equal(can(viewer,'scans:create'),false);assert.equal(can(viewer,'users:manage'),false)});
+test('customer scope is explicit and deny by default',()=>{assert.equal(can(viewer,'records:read',{customerId:'customer-a'}),true);assert.equal(can(viewer,'records:read',{customerId:'customer-b'}),false);assert.equal(can({...viewer,customerIds:undefined},'records:read',{customerId:'customer-a'}),false)});
+test('warehouse role can create scans but not administer users',()=>{const warehouse={...viewer,role:'warehouse'};assert.equal(can(warehouse,'scans:create'),true);assert.equal(can(warehouse,'users:manage'),false)});
+test('permission assertion fails closed',()=>{assert.throws(()=>assertPermission(viewer,'orders:manage'),{status:403})});
+test('principal display projection excludes scopes and secrets',()=>{assert.deepEqual(redactPrincipal({...viewer,token:'secret'}),{id:'user-1',role:'viewer',active:true})});

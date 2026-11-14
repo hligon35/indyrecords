@@ -5,9 +5,9 @@
   "identifier": "com.alphazonelabs.irmrms.prototype",
   "build": {
     "frontendDist": "../../../dist/web",
-    "devUrl": "http://localhost:4173",
-    "beforeDevCommand": "",
-    "beforeBuildCommand": ""
+    "devUrl": "http://127.0.0.1:4173",
+    "beforeDevCommand": "node ../../scripts/serve-web.mjs",
+    "beforeBuildCommand": "node ../../scripts/build-web.mjs"
   },
   "app": {
     "windows": [
@@ -20,13 +20,19 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'"
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' http://localhost:8787 http://127.0.0.1:8787; object-src 'none'; base-uri 'self'"
     }
   },
   "bundle": {
     "active": true,
     "targets": [
       "nsis"
+    ],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.ico"
     ]
   }
 }

@@ -1,26 +1,9 @@
-# IRM RMS Windows desktop (Tauri 2 scaffold)
+# IRM RMS Windows (Tauri 2)
 
-This is a **source scaffold**, not a verified or signed installer. It hosts the current static prototype from the repository root in a native Windows WebView2 window.
+Install Node, Rust with the MSVC target, Visual Studio C++ build tools, and WebView2. From this directory run npm ci, then npm run dev or npm run build. The runner generates icons, locates the usual user Rust installation, and launches Tauri. Development automatically builds and serves only dist/web at http://127.0.0.1:4173; no separate server is needed.
 
-## Prerequisites
-- Windows 10/11, Rust toolchain with MSVC target, Visual Studio C++ build tools, WebView2, Node.js.
-- Run a local static HTTP server on port 4173 for development.
+The same read-only inventory interface is used on web and Windows. Default CSP permits only the loopback synthetic API at port 8787. To include a separately approved HTTPS read-only API, set IRM_READONLY_API_ORIGIN to its exact origin before building; the runner adds just that origin to CSP. Configure the API's READONLY_ALLOWED_ORIGINS for the desktop origin (normally http://tauri.localhost on Windows), and the web preview origin when testing development. Never embed credentials in this setting or app assets.
 
-## Run
-From repository root:
-```powershell
-npx serve . -l 4173
-```
-In another terminal:
-```powershell
-cd apps/windows
-npm install
-npm run dev
-```
-Build with `npm run build` after verifying Rust, WebView2 and Tauri prerequisites.
+Preserves the local synthetic demo. Tokens and remote inventory stay in memory. No shared token is distributed, remote writes are blocked, and no updater, signing or real-data integration is configured. The installer remains a development artifact; see docs/phase-8.md for observed build results and remaining validation.
 
-## Limitations
-- No code signing, auto-updates, native scanner adapter, OS notification integration or production auth yet.
-- The root UI uses browser localStorage; this is demo-only.
-- Tauri configuration and Rust build have not been tested in this environment.
-- Do not deploy to company-owned devices without approval.
+Reference: [Tauri Windows prerequisites](https://v2.tauri.app/start/prerequisites/).

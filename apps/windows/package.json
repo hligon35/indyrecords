@@ -3,8 +3,9 @@
   "private": true,
   "version": "0.1.0",
   "scripts": {
-    "dev": "tauri dev",
-    "build": "tauri build"
+    "dev": "node run.mjs dev",
+    "build": "node run.mjs build",
+    "icons": "tauri icon ../../assets/irm-icon.svg"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.0.0"

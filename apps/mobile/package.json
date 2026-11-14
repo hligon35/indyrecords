@@ -7,7 +7,8 @@
     "start": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios",
-    "doctor": "expo-doctor"
+    "doctor": "expo-doctor",
+    "build:android": "expo export --platform android --output-dir dist/android"
   },
   "dependencies": {
     "expo": "~54.0.0",
@@ -18,5 +19,8 @@
   },
   "devDependencies": {
     "expo-doctor": "^1.17.0"
+  },
+  "overrides": {
+    "expo": "$expo"
   }
 }
