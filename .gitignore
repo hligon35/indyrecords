@@ -7,3 +7,9 @@ node_modules/
 dist/
 coverage/
 .DS_Store
+
+apps/windows/src-tauri/target/
+apps/windows/src-tauri/icons/
+apps/mobile/.expo/
+apps/mobile/dist/
+apps/windows/src-tauri/gen/
