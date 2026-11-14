@@ -2,7 +2,7 @@
 export const ROLES=Object.freeze(['viewer','warehouse','dispatcher','manager','admin']);
 const grants=Object.freeze({
  viewer:['records:read','reports:read'],
- warehouse:['records:read','reports:read','scans:create'],
+ warehouse:['records:read','reports:read','scans:create','orders:read'],
  dispatcher:['records:read','reports:read','orders:read','orders:manage'],
  manager:['records:read','reports:read','orders:read','orders:manage','scans:create','audit:read'],
  admin:['records:read','reports:read','orders:read','orders:manage','scans:create','audit:read','users:manage']

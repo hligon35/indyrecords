@@ -12,3 +12,7 @@ Routes: GET /health, GET /v1/session, POST /v1/session, DELETE /v1/session, GET 
 workers_dev and preview_urls are disabled. No Worker was deployed. Keep the database ID placeholder until separately approved private synthetic infrastructure exists. The development shared token must never be exposed publicly or included in a client build.
 
 Run npm test for policy, cryptographic JWT, SQL-backed authorization/audit/session and offline sync tests. The SQL tests use Node SQLite with all migrations applied, not remote D1. Worker packaging is npx wrangler deploy --dry-run; this does not deploy.
+
+## Phases 9–12 synthetic workflows
+
+Apply migration 0004 locally. Set SYNTHETIC_WORKFLOWS_ENABLED=true only in the local .dev.vars file. A verified user session and explicit customer grant are required; the shared development token cannot access warehouse workspaces. See [phases 9–12](phases-9-12.md) for routes and commands. Source inventory is unchanged by the warehouse sandbox.

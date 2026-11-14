@@ -23,7 +23,7 @@ export function createSyncCoordinator({repository,api,clock=()=>Date.now(),onSta
     await repository.write(queue);
     onState({clientEventId:event.clientEventId,status:'sending'});
     try{
-     const result=await api.submitScan({
+     const result=await api.submitScan(event.command?{clientEventId:event.clientEventId,customerId:event.customerId,actorId:event.actorId,command:event.command}:{
       clientEventId:event.clientEventId,
       barcode:event.barcode,
       operation:event.operation,
@@ -38,6 +38,7 @@ export function createSyncCoordinator({repository,api,clock=()=>Date.now(),onSta
      processed++;
     }catch(error){
      const kind=classifyScanFailure(error);
+     queue=queue.map(x=>x.clientEventId===event.clientEventId?{...x,lastError:String(error.message||'Synchronization failed').slice(0,200),lastStatus:error.status||null}:x);
      if(kind==='reauthenticate'){
       queue=acknowledge(queue,event.clientEventId,'retry',clock());
       await repository.write(queue);

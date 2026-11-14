@@ -2,7 +2,7 @@
 
 The Worker verifies Cloudflare Access RS256 application JWTs against a configured team issuer and audience. It validates the signature, key identifier, issuer, audience, expiry, issued-at and optional not-before time. Signing keys come only from the configured HTTPS Cloudflare Access certs endpoint, with a five-minute cache and refresh for unknown key IDs. Identity headers, email strings and client role claims are never sufficient authorization.
 
-Configure ACCESS_ISSUER as the exact https://TEAM.cloudflareaccess.com origin and ACCESS_AUDIENCE as the application audience. No account or provider was connected during implementation. Obtain an application token through an approved Cloudflare Access login outside this prototype. The UI exchanges that verified token for a short-lived application session, or accepts an existing session; an interactive login redirect is not implemented.
+Configure ACCESS_ISSUER as the exact https://TEAM.cloudflareaccess.com origin and ACCESS_AUDIENCE as the application audience. No account or provider was connected during implementation. Obtain an application token through an approved Cloudflare Access login outside this prototype. The UI exchanges that verified token for a short-lived application session, or accepts an existing session; interactive web login is implemented through the Access-protected /auth/login route and PKCE exchange described in phases-9-12.md.
 
 Explicitly provision app_users.external_subject with the verified sub. Users default to inactive. Approve role, active status and user_customer_access rows only in the dedicated synthetic database. No public provisioning or role management endpoint exists. Admins also require explicit customer grants.
 
@@ -17,3 +17,7 @@ Every non-health API request persists its allow/deny outcome in access_audit bef
 Before any authorized pilot: approve identity-provider policy and user mapping, configure exact CORS origins, implement rate limiting and session/audit retention, review audit access and backup policy, and test provider rotation/outage and native device behavior. No public deployment or real-data migration is authorized by this implementation.
 
 Verification reference: [Cloudflare Access token validation](https://developers.cloudflare.com/cloudflare-one/access-controls/applications/http-apps/authorization-cookie/validating-json/).
+
+## Phase 9 interactive login
+
+See [phases 9–12](phases-9-12.md) for ACCESS_LOGIN_ENABLED, Access route protection, PKCE code exchange and native-platform boundaries. No provider was connected or deployed.

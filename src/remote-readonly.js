@@ -1,4 +1,4 @@
-/** Explicit opt-in inventory reads; only session creation/revocation may use non-GET requests. */
+/** Source inventory stays read-only; session changes and local synthetic commands are explicitly gated. */
 import {createApiClient} from '../packages/api-client/index.js';
 export function createReadOnlyConnection({fetchImpl=fetch}={}) {
   let api=null;
@@ -40,6 +40,13 @@ export function createReadOnlyConnection({fetchImpl=fetch}={}) {
       const credential=token,baseUrl=endpoint;
       connection.disconnect();
       if(credential?.startsWith('irm_session_'))await createApiClient({baseUrl,getAccessToken:()=>credential,fetchImpl}).endSession();
+    },
+    async getWorkspace(customerId){return read('getWorkspace',customerId)},
+    async submitSyntheticCommand(customerId,command){
+      requireConnection();if(!['localhost','127.0.0.1'].includes(new URL(endpoint).hostname))throw Error('Warehouse changes require a local synthetic API');
+      const current=generation;const credential=token;
+      let result;try{result=await createApiClient({baseUrl:endpoint,getAccessToken:()=>credential,fetchImpl,readOnly:false}).submitWarehouseCommand(customerId,command)}catch(error){if(current===generation&&error.status===401)connection.disconnect();throw error}
+      if(current!==generation)throw Error('Connection changed during request');return result;
     },
     get connected(){return !!api},
     get endpoint(){return endpoint},

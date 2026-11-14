@@ -21,6 +21,8 @@ export function createApiClient({baseUrl,getAccessToken,fetchImpl=fetch,readOnly
   return payload;
  }
  return {
+  getWorkspace:(customerId)=>request('/v1/sandbox/workspace?'+new URLSearchParams({customerId})),
+  submitWarehouseCommand:(customerId,command)=>request('/v1/sandbox/commands',{method:'POST',body:{customerId,command}}),
   beginSession:()=>request('/v1/session',{method:'POST'}),
   endSession:()=>request('/v1/session',{method:'DELETE'}),
   getSession:()=>request('/v1/session'),

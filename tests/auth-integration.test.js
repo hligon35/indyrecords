@@ -18,9 +18,9 @@ async function jwt(overrides={},header={}){
 const keyFetch=async()=>new Response(JSON.stringify({keys:[jwk]}));
 function fixture(){
  const db=new DatabaseSync(':memory:');
- for(const file of ['migrations/0001_initial.sql','migrations/0002_auth_audit_foundation.sql','migrations/0003_sessions.sql','scripts/seed-demo.sql'])db.exec(readFileSync(new URL('../'+file,import.meta.url),'utf8'));
+ for(const file of ['migrations/0001_initial.sql','migrations/0002_auth_audit_foundation.sql','migrations/0003_sessions.sql','migrations/0004_synthetic_workflows.sql','scripts/seed-demo.sql'])db.exec(readFileSync(new URL('../'+file,import.meta.url),'utf8'));
  db.exec("INSERT INTO app_users(id,external_subject,display_name,role,active) VALUES('u1','subject-1','Synthetic User','viewer',1); INSERT INTO user_customer_access VALUES('u1','c2');");
- const DB={prepare(sql){let params=[];const query={bind(...values){params=values;return query},async first(){return db.prepare(sql).get(...params)||null},async all(){return {results:db.prepare(sql).all(...params)}},async run(){db.prepare(sql).run(...params);return {success:true}}};return query}};
+ const DB={prepare(sql){let params=[];const query={bind(...values){params=values;return query},async first(){return db.prepare(sql).get(...params)||null},async all(){return {results:db.prepare(sql).all(...params)}},async run(){const result=db.prepare(sql).run(...params);return {success:true,meta:{changes:Number(result.changes)}}}};return query}};
  return {db,env:{...config,DB}};
 }
 function request(path,token,method='GET'){return new Request('https://private.example'+path,{method,headers:{authorization:'Bearer '+token}})}
@@ -86,4 +86,40 @@ test('local verified scan writes enforce roles, customer grants and idempotent p
   const oversized=new Request('http://localhost/v1/scans',{method:'POST',headers:{authorization:'Bearer '+token},body:'x'.repeat(5000)});
   assert.equal((await handler(oversized,env)).status,413);
  }finally{globalThis.fetch=originalFetch;db.close()}
+});
+
+test('interactive login verifies Access identity, binds PKCE and consumes the code exactly once',async()=>{
+ const {db,env}=fixture();env.ACCESS_LOGIN_ENABLED='true';env.READONLY_ALLOWED_ORIGINS='https://app.example';const originalFetch=globalThis.fetch;globalThis.fetch=keyFetch;
+ try{
+  const {pkceChallenge}=await import('../api/login.js');const state='s'.repeat(64),verifier='v'.repeat(64);
+  const url='https://private.example/auth/login?'+new URLSearchParams({state,challenge:await pkceChallenge(verifier),returnOrigin:'https://app.example'});
+  const login=await handler(new Request(url,{headers:{'cf-access-jwt-assertion':await jwt()}}),env);assert.equal(login.status,302);
+  const fragment=new URLSearchParams(new URL(login.headers.get('location')).hash.slice(1));const code=fragment.get('irm_login_code');
+  const exchange=(v=verifier)=>new Request('https://private.example/auth/exchange',{method:'POST',headers:{origin:'https://app.example','content-type':'application/json'},body:JSON.stringify({state,code,verifier:v})});
+  assert.equal((await handler(exchange('wrong'.repeat(16)),env)).status,401);
+  const response=await handler(exchange(),env);assert.equal(response.status,201);const {accessToken}=await response.json();
+  assert.equal((await handler(request('/v1/session',accessToken),env)).status,200);assert.equal((await handler(exchange(),env)).status,401);
+  assert.equal((await handler(new Request(url.replace('https%3A%2F%2Fapp.example','https%3A%2F%2Fevil.example')),env)).status,400);
+ }finally{globalThis.fetch=originalFetch;db.close()}
+});
+test('synthetic D1 warehouse commands enforce tenant/role isolation and leave source records unchanged',async()=>{
+ const {db,env}=fixture();env.SYNTHETIC_WORKFLOWS_ENABLED='true';const token='irm_session_warehouse';db.prepare('INSERT INTO app_sessions(token_hash,user_id,expires_at) VALUES(?,?,?)').run(await digest(token),'u1',Date.now()+60000);
+ const command={type:'create_order',clientEventId:'order-command-1',orderId:'demo-order',operation:'Retrieval',barcodes:['IRM-BX-1002']};
+ const send=(cmd=command,customerId='c2',host='http://localhost')=>handler(new Request(host+'/v1/sandbox/commands',{method:'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:JSON.stringify({customerId,command:cmd})}),env);
+ try{
+  assert.equal((await send()).status,403);assert.equal((await handler(new Request('http://localhost/v1/sandbox/workspace?customerId=c2',{headers:{authorization:'Bearer '+token}}),env)).status,403);db.exec("UPDATE app_users SET role='manager'");
+  assert.equal((await send(command,'c3')).status,403);assert.equal((await send(command,'c2','https://public.example')).status,403);
+  assert.equal((await send()).status,201);assert.equal((await (await send()).json()).status,'already_accepted');
+  const pick={type:'pick',clientEventId:'pick-1',orderId:'demo-order',orderVersion:0,barcode:'IRM-BX-1002',expectedVersion:1};
+  assert.equal((await send(pick)).status,201);assert.equal((await send({...pick,clientEventId:'stale-1'})).status,409);
+  const state=JSON.parse(db.prepare('SELECT payload FROM sandbox_workspaces').get().payload);assert.equal(state.records[0].status,'Picked');assert.equal(state.custody.length,2);
+  assert.equal(db.prepare("SELECT status FROM records WHERE barcode='IRM-BX-1002'").get().status,'Stored');assert.equal(db.prepare('SELECT COUNT(*) AS n FROM scan_events').get().n,0);
+  const view=await handler(new Request('http://localhost/v1/sandbox/workspace?customerId=c2',{headers:{authorization:'Bearer '+token}}),env);assert.equal(view.status,200);assert.equal((await view.json()).receipts,undefined);
+ }finally{db.close()}
+});
+
+test('concurrent warehouse updates use compare-and-swap and persist one custody event',async()=>{
+ const {db,env}=fixture();env.SYNTHETIC_WORKFLOWS_ENABLED='true';db.exec("UPDATE app_users SET role='warehouse'");const token='irm_session_concurrent';db.prepare('INSERT INTO app_sessions(token_hash,user_id,expires_at) VALUES(?,?,?)').run(await digest(token),'u1',Date.now()+60000);
+ const move=(clientEventId,location)=>handler(new Request('http://localhost/v1/sandbox/commands',{method:'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:JSON.stringify({customerId:'c2',command:{type:'move',clientEventId,barcode:'IRM-BX-1002',expectedVersion:0,location}})}),env);
+ try{const responses=await Promise.all([move('race-1','A01-R02'),move('race-2','A02-R01')]);assert.deepEqual(responses.map(x=>x.status).sort(),[201,409]);const row=db.prepare('SELECT version,payload FROM sandbox_workspaces').get();assert.equal(row.version,1);assert.equal(JSON.parse(row.payload).custody.length,1)}finally{db.close()}
 });

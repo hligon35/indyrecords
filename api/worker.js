@@ -1,3 +1,5 @@
+import {loginRoute} from './login.js';
+import {warehouseRoute} from './warehouse.js';
 import {authenticate,verifyIdentity,digest} from './auth.js';
 import {can} from '../packages/security/permissions.js';
 // Standalone demo API. Do not deploy publicly with mutation access.
@@ -25,6 +27,7 @@ async function routes(request,env,principal,localDemo){
     await env.DB.prepare('UPDATE app_sessions SET revoked_at=? WHERE token_hash=?').bind(Date.now(),await digest(token)).run();
     return json({status:'signed_out'});
   }
+  if(path.startsWith('/v1/sandbox/'))return warehouseRoute(request,env,principal,scanBody);
   if(!localDemo){
     const permission=path==='/v1/scans'?'scans:create':path==='/v1/reports/summary'?'reports:read':'records:read';
     if(!can(principal,permission))return fail('Forbidden',403);
@@ -107,6 +110,8 @@ async function handler(request,env){
  try{
   if(request.headers.has('origin')&&!allowedOrigin(request,env))response=fail('Origin not allowed',403);
   else {
+  if(url.pathname.startsWith('/auth/')){({response,principal}=await loginRoute(request,env,scanBody))}
+  else {
   if(localDemo)principal={id:'demo-api-user',active:true,role:'warehouse',customerIds:[]};
   else {try{principal=await authenticate(request,env)}catch{principal=null}}
   if(!principal)response=fail('Sign in required',401);
@@ -123,7 +128,8 @@ async function handler(request,env){
    }
   }else response=await routes(request,env,principal,localDemo);
   }
- }catch{response=fail('Internal error',500)}
+  }
+ }catch(error){response=fail(error.status===413?'Payload too large':'Internal error',error.status===413?413:500)}
  // Await persistence before disclosing records. Failure to audit fails the request closed.
  try{
   await env.DB.prepare('INSERT INTO access_audit(id,actor_id,action,resource_type,resource_id,decision) VALUES(?,?,?,?,?,?)')
