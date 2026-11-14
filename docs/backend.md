@@ -23,3 +23,7 @@ All `/v1` routes require `Authorization: Bearer <DEMO_API_TOKEN>`. **This shared
 
 ## Deployment caution
 The placeholder database ID intentionally prevents deployment without explicit setup. Do not deploy this API publicly until session-based authentication, scoped permissions, rate limiting, audit and abuse controls are implemented. Never place a shared API token in a browser bundle.
+
+## Scan write safety flag
+
+Scan submissions are **disabled by default**, including when a development token is present. Only a locally controlled synthetic-data test environment may set `DEMO_WRITES_ENABLED=true`. Never set this flag on an Internet-accessible deployment or against actual company records. This flag is not a replacement for user authentication, permissions, audit trails or approval workflows.
