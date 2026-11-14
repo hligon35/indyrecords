@@ -5,11 +5,12 @@
 export class ApiError extends Error {
  constructor(message,status){super(message);this.name='ApiError';this.status=status}
 }
-export function createApiClient({baseUrl,getAccessToken,fetchImpl=fetch}){
+export function createApiClient({baseUrl,getAccessToken,fetchImpl=fetch,readOnly=true}){
  if(typeof baseUrl!=='string'||!/^https?:\/\//.test(baseUrl))throw Error('An absolute API URL is required');
  if(typeof getAccessToken!=='function')throw Error('getAccessToken callback required');
  const base=baseUrl.replace(/\/$/,'');
  async function request(path,{method='GET',body,signal}={}){
+  if(readOnly && method!=='GET')throw new ApiError('Read-only connection: record modifications are disabled',403);
   const token=await getAccessToken();
   if(!token)throw new ApiError('Sign in required',401);
   const response=await fetchImpl(base+path,{method,signal,headers:{authorization:'Bearer '+token,...(body?{'content-type':'application/json'}:{})},body:body?JSON.stringify(body):undefined});
