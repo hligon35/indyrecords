@@ -8,7 +8,13 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.alphazonelabs.irmrmsdemo"
+      "bundleIdentifier": "com.alphazonelabs.irmrmsdemo",
+      "infoPlist": {
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": false,
+          "NSAllowsLocalNetworking": true
+        }
+      }
     },
     "android": {
       "package": "com.alphazonelabs.irmrmsdemo",
@@ -27,7 +33,8 @@
           "recordAudioAndroid": false,
           "microphonePermission": false
         }
-      ]
+      ],
+      "./plugins/with-loopback-network.cjs"
     ]
   }
 }
