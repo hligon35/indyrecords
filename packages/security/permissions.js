@@ -4,8 +4,8 @@ const grants=Object.freeze({
  viewer:['records:read','reports:read'],
  warehouse:['records:read','reports:read','scans:create','orders:read'],
  dispatcher:['records:read','reports:read','orders:read','orders:manage'],
- manager:['records:read','reports:read','orders:read','orders:manage','scans:create','audit:read'],
- admin:['records:read','reports:read','orders:read','orders:manage','scans:create','audit:read','users:manage']
+ manager:['records:read','reports:read','orders:read','orders:manage','scans:create','audit:read','customers:manage','integrations:read','integrations:stage'],
+ admin:['records:read','reports:read','orders:read','orders:manage','scans:create','audit:read','users:manage','customers:manage','integrations:read','integrations:stage']
 });
 export function can(principal,permission,{customerId}={}){
  if(!principal||principal.active!==true||typeof principal.id!=='string'||!principal.id.trim())return false;

@@ -7,10 +7,16 @@
     "db:local": "wrangler d1 migrations apply irm-rms-demo --local",
     "db:remote": "wrangler d1 migrations apply irm-rms-demo --remote",
     "test": "node --test tests/*.test.js",
-    "build:web": "node scripts/build-web.mjs"
+    "build:web": "node scripts/build-web.mjs",
+    "verify:pilot": "node scripts/pilot-readiness.mjs",
+    "verify:restore": "node scripts/local-restore-drill.mjs --synthetic-local"
   },
   "devDependencies": {
+    "esbuild": "^0.28.2",
     "jsdom": "^31.0.1",
     "wrangler": "^4.0.0"
+  },
+  "dependencies": {
+    "pdf-lib": "^1.17.1"
   }
 }

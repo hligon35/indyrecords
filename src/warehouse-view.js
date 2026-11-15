@@ -13,6 +13,7 @@ export function createWarehouseView({remote,storage=localStorage}={}){
  }
  async function refresh(render){if(busy)return;busy=true;notice='Loading synthetic workspace…';workspace=seedWarehouse(customerId);render();try{workspace=source==='d1'?await remote.getWorkspace(customerId):load();notice=await verifyCustody(workspace.custody)?'Custody history verified.':'Custody integrity check failed.'}catch(error){workspace=seedWarehouse(customerId);notice=error.message}finally{busy=false;render()}}
  async function submit(command,render){if(busy)return;busy=true;render();try{
+  if(source==='local'&&['create_order','register_record'].includes(command.type)){let profiles;try{profiles=JSON.parse(storage.getItem('irm-rms-customer-profiles'))}catch{}if(profiles?.[customerId]?.active===false)throw Error('Customer is archived; new intake and orders are disabled')}
   command.clientEventId=crypto.randomUUID();
   if(source==='d1'){const result=await remote.submitSyntheticCommand(customerId,command);workspace=result.workspace}
   else {if(!await verifyCustody(workspace.custody))throw Error('Custody history failed verification');workspace=(await applyWarehouseCommand(workspace,command,'local-demo-manager')).state;storage.setItem('irm-warehouse-'+customerId,JSON.stringify(workspace))}

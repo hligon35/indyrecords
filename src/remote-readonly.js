@@ -5,11 +5,17 @@ export function createReadOnlyConnection({fetchImpl=fetch}={}) {
   let endpoint='';
   let token=null;
   let generation=0;
+  let user=null;
   function requireConnection(){if(!api)throw Error('Not connected');return api}
   async function read(method,...args){
     const current=generation;
     try{const result=await requireConnection()[method](...args);if(current!==generation)throw Error('Connection changed during request');return result}
-    catch(error){if(current===generation&&error.status===401){generation++;token=null;api=null;endpoint=''}throw error}
+    catch(error){if(current===generation&&error.status===401){generation++;token=null;api=null;endpoint='';user=null}throw error}
+  }
+  async function localManagementWrite(method,input){
+   requireConnection();if(!['localhost','127.0.0.1'].includes(new URL(endpoint).hostname))throw Error('Changes require a local synthetic API');
+   const current=generation,credential=token;
+   try{const result=await createApiClient({baseUrl:endpoint,getAccessToken:()=>credential,fetchImpl,readOnly:false})[method](input);if(current!==generation)throw Error('Connection changed during request');return result}catch(error){if(current===generation&&error.status===401)connection.disconnect();throw error}
   }
   const connection={
     connect({baseUrl,accessToken}) {
@@ -22,7 +28,7 @@ export function createReadOnlyConnection({fetchImpl=fetch}={}) {
       generation++;
       api=createApiClient({baseUrl:endpoint,getAccessToken:()=>token,fetchImpl,readOnly:true});
     },
-    disconnect(){generation++;token=null;api=null;endpoint=''},
+    disconnect(){generation++;token=null;api=null;endpoint='';user=null},
     async signIn(options){
       connection.connect(options);const current=generation;
       try{
@@ -48,9 +54,17 @@ export function createReadOnlyConnection({fetchImpl=fetch}={}) {
       let result;try{result=await createApiClient({baseUrl:endpoint,getAccessToken:()=>credential,fetchImpl,readOnly:false}).submitWarehouseCommand(customerId,command)}catch(error){if(current===generation&&error.status===401)connection.disconnect();throw error}
       if(current!==generation)throw Error('Connection changed during request');return result;
     },
+    async getCustomerProfiles(){return read('getCustomerProfiles')},
+    async getManagementReport(options){return read('getManagementReport',options)},
+    async getIntegrationJobs(customerId){return read('getIntegrationJobs',customerId)},
+    async getIntegrationJob(customerId,id){return read('getIntegrationJob',customerId,id)},
+    async saveCustomerProfile(input){return localManagementWrite('saveCustomerProfile',input)},
+    async stageIntegration(input){return localManagementWrite('stageIntegration',input)},
+    get user(){return user},
+    get revision(){return generation},
     get connected(){return !!api},
     get endpoint(){return endpoint},
-    async verifySession(){const session=await read('getSession');if(!session?.user?.id)throw Error('Invalid session response');return session},
+    async verifySession(){const session=await read('getSession');if(!session?.user?.id)throw Error('Invalid session response');user=session.user;return session},
     async searchRecords(options){return read('searchRecords',options)},
     async getRecord(barcode){return read('getRecord',barcode)},
     async getSummary(){return read('getSummary')},

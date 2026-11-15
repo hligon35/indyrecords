@@ -21,3 +21,9 @@ Verification reference: [Cloudflare Access token validation](https://developers.
 ## Phase 9 interactive login
 
 See [phases 9–12](phases-9-12.md) for ACCESS_LOGIN_ENABLED, Access route protection, PKCE code exchange and native-platform boundaries. No provider was connected or deployed.
+
+## Phases 13–15 native login and security additions
+
+Native browser callbacks now support the explicit NATIVE_LOGIN_REDIRECTS allowlist values irmrmsdesktop://auth and irmrmsdemo://auth. Omit this setting to keep native login disabled. Windows additionally needs its exact Tauri origin in READONLY_ALLOWED_ORIGINS. The Access-protected login route still requires ACCESS_LOGIN_ENABLED and a verified provider token; custom URL schemes never grant identity themselves. Codes are one-use and state/PKCE-bound. Windows retains sessions in memory, while Android uses protected device storage and clears expired or rejected sessions. Physical-device/provider round trips remain acceptance gates.
+
+Authentication issuance/exchange is now throttled through persistent D1 rate buckets (ten requests per minute per path and hashed peer). Expired authentication cleanup primitives are available; audit retention and external archival still require an approved policy. This supersedes the earlier implementation gap for native browser callbacks, not the requirement for real-device evidence. Current implementation and validation details are in phases-13-15.md.

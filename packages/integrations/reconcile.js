@@ -18,22 +18,16 @@ export function normalizeRecord(row,source){
  };
 }
 export function reconcileRecords(sourceRows,comparisonRows){
- const byBarcode=new Map();
- for(const row of comparisonRows){
-  const barcode=String(row.barcode??'').trim().toUpperCase();
-  if(!byBarcode.has(barcode))byBarcode.set(barcode,[]);
-  byBarcode.get(barcode).push(row);
+ const key=row=>(row.customerId===undefined?'':String(row.customerId)+':')+String(row.barcode??'').trim().toUpperCase();
+ const group=rows=>{const map=new Map();for(const row of rows){const k=key(row);if(!map.has(k))map.set(k,[]);map.get(k).push(row)}return map};
+ const sources=group(sourceRows),targets=group(comparisonRows),differences=[];let matched=0;
+ for(const [id,rows] of sources){
+  const source=rows[0],candidates=targets.get(id)||[];
+  if(rows.length!==1||candidates.length>1){differences.push({barcode:source.barcode,customerId:source.customerId,kind:'ambiguous',sourceCount:rows.length,count:candidates.length});continue}
+  if(!candidates.length){differences.push({barcode:source.barcode,customerId:source.customerId,kind:'missing',source});continue}
+  const target=candidates[0],fields=['customer','location','status'].filter(field=>source[field]!==target[field]);
+  if(fields.length)differences.push({barcode:source.barcode,customerId:source.customerId,kind:'mismatch',fields,source,target});else matched++;
  }
- const differences=[];
- let matched=0;
- for(const source of sourceRows){
-  const candidates=byBarcode.get(source.barcode)||[];
-  if(candidates.length===0){differences.push({barcode:source.barcode,kind:'missing',source});continue}
-  if(candidates.length!==1){differences.push({barcode:source.barcode,kind:'ambiguous',count:candidates.length});continue}
-  const target=candidates[0];
-  const fields=['customer','location','status'].filter(key=>source[key]!==target[key]);
-  if(fields.length)differences.push({barcode:source.barcode,kind:'mismatch',fields,source,target});
-  else matched++;
- }
- return {matched,differences,total:sourceRows.length};
+ for(const [id,rows] of targets)if(!sources.has(id))differences.push({barcode:rows[0].barcode,customerId:rows[0].customerId,kind:'target_only',count:rows.length});
+ return {matched,differences,total:sourceRows.length,comparisonTotal:comparisonRows.length};
 }

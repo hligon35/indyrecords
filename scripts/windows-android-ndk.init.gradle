@@ -1,0 +1,13 @@
+// Optional Windows build-host workaround: short compiler names can hide clang++ driver mode.
+// Run only from an isolated short checkout; this does not change application behavior or signing.
+// Clang derives its driver mode from argv[0]: https://clang.llvm.org/doxygen/ToolChain_8cpp_source.html
+if (!System.getProperty('os.name').toLowerCase().contains('windows')) {
+    throw new GradleException('This optional linker workaround is for Windows hosts only')
+}
+allprojects { p ->
+    p.afterEvaluate {
+        if (p.extensions.findByName('android') != null) {
+            p.android.defaultConfig.externalNativeBuild.cmake.arguments '-DCMAKE_SHARED_LINKER_FLAGS=--driver-mode=g++'
+        }
+    }
+}
