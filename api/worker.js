@@ -1,3 +1,5 @@
+import {operationsRoute} from './operations.js';
+import {scheduledOperations} from './operations-scheduler.js';
 import {continueFieldExport} from './field-export.js';
 import {fieldRoute} from './field.js';
 import {commercialRoute} from './commercial.js';
@@ -33,6 +35,7 @@ async function routes(request,env,principal,localDemo){
     await env.DB.prepare('UPDATE app_sessions SET revoked_at=? WHERE token_hash=?').bind(Date.now(),await digest(token)).run();
     return json({status:'signed_out'});
   }
+  if(path.startsWith('/v1/operations/'))return operationsRoute(request,env,principal,scanBody);
   if(path.startsWith('/v1/field/'))return fieldRoute(request,env,principal,scanBody);
   if(path.startsWith('/v1/commercial/'))return commercialRoute(request,env,principal,scanBody);
   if(path.startsWith('/v1/administration/'))return administrationRoute(request,env,principal,scanBody);
@@ -166,5 +169,5 @@ async function fetchHandler(request,env,context){
  response.headers.set('vary','Origin');response.headers.set('x-content-type-options','nosniff');
  return response;
 }
-export default {fetch:fetchHandler};
+export default {fetch:fetchHandler,scheduled(controller,env,context){context.waitUntil(scheduledOperations(env,controller.scheduledTime));}};
 export {handler};

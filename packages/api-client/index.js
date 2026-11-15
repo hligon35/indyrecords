@@ -21,6 +21,14 @@ export function createApiClient({baseUrl,getAccessToken,fetchImpl=fetch,readOnly
   return payload;
  }
  return {
+  getOperationsDocument:options=>request('/v1/operations/document?'+new URLSearchParams(options)),
+  getOperationsStatus:customerId=>request('/v1/operations/status?'+new URLSearchParams({customerId})),
+  getOperationsTasks:(customerId,cursor='')=>request('/v1/operations/tasks?'+new URLSearchParams({customerId,cursor})),
+  getOperationsHistory:(customerId,taskId)=>request('/v1/operations/history?'+new URLSearchParams({customerId,taskId})),
+  installOperationsSample:input=>request('/v1/operations/sample',{method:'POST',body:input}),
+  enqueueOperation:input=>request('/v1/operations/tasks',{method:'POST',body:input}),
+  runOperations:input=>request('/v1/operations/run',{method:'POST',body:input}),
+  controlOperation:input=>request('/v1/operations/control',{method:'POST',body:input}),
   getFieldWorkspace:customerId=>request('/v1/field/workspace?'+new URLSearchParams({customerId})),
   getFieldDrivers:customerId=>request('/v1/field/drivers?'+new URLSearchParams({customerId})),
   fieldCommand:input=>request('/v1/field/commands',{method:'POST',body:input}),

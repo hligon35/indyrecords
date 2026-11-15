@@ -22,14 +22,23 @@ const day = (v) => {
 const addDays = (v, n) => new Date(Date.parse(v) + n * 864e5).toISOString().slice(0, 10);
 const bp = (amount, rate) => Number((BigInt(amount) * BigInt(rate) + 5000n) / 10000n);
 function estimatePrice(p) {
-  const quantity = num(p.quantity, "quantity", 1e4);
+  const measured = p.measuredQuantity !== undefined && p.measuredQuantity !== '';
+  let quantity, quantityMilli;
+  if (measured) {
+    if (!['weight','hour'].includes(p.unit) || typeof p.measuredQuantity !== 'string' || !/^(0|[1-9][0-9]{0,4})(\.[0-9]{1,3})?$/.test(p.measuredQuantity)) fail('Measured units require weight/hour and up to three decimal places');
+    const [whole,fraction=''] = p.measuredQuantity.split('.');
+    quantityMilli = Number(whole)*1000+Number(fraction.padEnd(3,'0'));
+    if (quantityMilli>10000000) fail('Measured quantity exceeds 10,000 units');
+    quantity = quantityMilli/1000;
+  } else quantity = num(p.quantity, "quantity", 1e4);
   if (!quantity) fail("Quantity must be positive");
   const rate = num(p.unitCents, "unit price", 1e6), minimum = num(p.minimumCents, "minimum"), discount = num(p.discountBps, "discount", 1e4), fuel = num(p.fuelBps, "fuel surcharge", 1e4), tax = num(p.taxBps, "tax", 1e4);
-  const base = Math.max(quantity * rate, minimum);
+  const extended = measured ? Number((BigInt(quantityMilli)*BigInt(rate)+500n)/1000n) : quantity*rate;
+  const base = Math.max(extended, minimum);
   const discountCents = bp(base, discount), net = base - discountCents, fuelCents = bp(net, fuel), taxCents = bp(net + fuelCents, tax);
   const totalCents = net + fuelCents + taxCents;
   if (!Number.isSafeInteger(totalCents) || totalCents > 1e8) fail("Estimate exceeds synthetic money limit");
-  return { quantity, unitCents: rate, minimumCents: minimum, discountBps: discount, fuelBps: fuel, taxBps: tax, baseCents: base, discountCents, fuelCents, taxCents, totalCents, currency: "USD" };
+  return { quantity, ...(measured?{quantityMilli,quantityScale:1000}:{}), unitCents: rate, minimumCents: minimum, discountBps: discount, fuelBps: fuel, taxBps: tax, baseCents: base, discountCents, fuelCents, taxCents, totalCents, currency: "USD" };
 }
 function invoiceBalance(s, invoice) {
   const payments = s.payments.filter((p) => p.invoiceId === invoice.id && p.status === "captured").reduce((n, p) => n + p.amountCents - p.refundedCents, 0), credits = (invoice.credits || []).reduce((n, c) => n + c.amountCents, 0);
@@ -241,7 +250,7 @@ function applyCommercial(state, command, actor = "demo-operator", now = (/* @__P
       const e = find("estimates", x.estimateId);
       if (e.status !== "draft" || e.agreementId) fail("Only uncontracted draft estimates can be revised", 409);
       e.revisions.push({ revision: e.revision, price: structuredClone(e.price), at });
-      e.price = estimatePrice(x);
+      e.price = estimatePrice({...x,unit:e.unit});
       e.revision++;
       break;
     }

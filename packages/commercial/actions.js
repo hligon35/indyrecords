@@ -7,6 +7,8 @@ const ACTIONS = {
   billing: [["draft_invoice", "Draft individual or consolidated invoice", [account, ["jobIds", "Completed jobs (select one or more)", "jobs*"], ["from", "Period starts", "date"], ["to", "Period ends", "date"], ["due", "Payment due", "date"]]], ["cancel_invoice", "Cancel invoice draft", [invoice]], ["issue_invoice", "Issue synthetic invoice", [invoice]], ["credit_invoice", "Record invoice credit", [invoice, ["amountCents", "Credit amount ($)", "money"], ["reason", "Reason", "text"]]], ["request_payment", "Request simulated checkout", [invoice, ["amountCents", "Payment amount ($)", "money"]]], ["cancel_payment", "Cancel pending payment", [["paymentId", "Payment", "payments"]]], ["refund_payment", "Request simulated refund", [["paymentId", "Payment", "payments"], ["amountCents", "Refund amount ($)", "money"]]]],
   integrations: [["review_delivery", "Review and retry exhausted delivery", [["outboxId", "Failed delivery", "outbox"], ["reason", "Review reason", "text"]]], ["reconcile_outbox", "Reconcile simulated QBO entry", [["outboxId", "Delivered QBO entry", "outbox"], ["externalId", "Simulated external reference", "text"], ["amountCents", "External total ($)", "money"]]], ["process_outbox", "Run simulated provider delivery", [["outboxId", "Pending or failed delivery", "outbox"], ["outcome", "Simulated result", "choice", "success|failure"]]]]
 };
+// Optional fixed-point quantity for uncontracted weight/hour estimates; legacy whole-unit inputs remain supported.
+for (const action of ACTIONS.sales) if (['create_estimate','revise_estimate'].includes(action[0])) action[2].push(['measuredQuantity','Measured pounds/hours (optional, up to 3 decimals)','text?']);
 export {
   ACTIONS,
   priceFields

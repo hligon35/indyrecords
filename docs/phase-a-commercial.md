@@ -2,6 +2,8 @@
 
 Implemented November 14, 2026. Open **Commercial Office** in the web/Windows navigation. This is a working synthetic office workflow, not live financial or signature processing. Existing inventory, warehouse, account administration and demonstration screens remain available.
 
+The later [four-phase backend continuation](backend-four-phases.md) adds optional fractional weight/hour estimates, backend sample invoice PDFs/HTML/CSV and a durable runner for the existing synthetic provider outbox. Whole-unit-only and no-invoice-PDF limitations below describe the original Phase A delivery.
+
 ## Delivered workflow
 
 - Separate prospects, customers and lost prospects; conversion retains account/contact/activity references. Add/archive accounts, locations and contacts, update names, record interactions, assign dated follow-ups and complete tasks.
