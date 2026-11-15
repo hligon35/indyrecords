@@ -9,7 +9,7 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.alphazonelabs.irmrmsdemo",
+      "bundleIdentifier": "com.azlabsllcprod.irmrmsprototype",
       "infoPlist": {
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": false,
@@ -49,6 +49,11 @@
           "useSQLCipher": true
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "41b5e365-0812-45e8-baeb-99477055850d"
+      }
+    }
   }
 }

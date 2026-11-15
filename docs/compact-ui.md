@@ -73,7 +73,7 @@ npx pod-install
 npm run ios
 ```
 
-A native iOS project is generated on macOS. To build an iPhone development app from Windows, the project includes an EAS development profile. From apps/mobile, run `npx eas-cli login`, `npx eas-cli build:configure` once to link the Expo project, then `npx eas-cli build --platform ios --profile development`. Install the resulting build and start Metro with `npm run start:dev-client`. An Apple Developer account is required for installing development builds on registered physical iPhones. An SDK-matched Expo Go cannot run this app’s custom native database/scanner modules.
+A native iOS project is generated on macOS. To build an iPhone development app from Windows, the project includes an EAS development profile. From apps/mobile, run `npx eas-cli login`, then `npm run build:ios:dev` (the app is linked to the existing EAS project). Install the resulting build and start Metro with `npm run start:dev-client`. An Apple Developer account is required for installing development builds on registered physical iPhones. An SDK-matched Expo Go cannot run this app’s custom native database/scanner modules.
 
 ## Optional local API
 
