@@ -19,7 +19,9 @@
     "dev:ios": "npm --prefix apps/mobile run ios",
     "dev:windows": "npm --prefix apps/windows run dev",
     "dev:android": "npm --prefix apps/mobile run android",
-    "prepare:ios": "npm --prefix apps/mobile run native:ios"
+    "prepare:ios": "npm --prefix apps/mobile run native:ios",
+    "build:ios:dev": "npm --prefix apps/mobile run build:ios:dev",
+    "dev:ios:dev-client": "npm --prefix apps/mobile run start:dev-client"
   },
   "devDependencies": {
     "esbuild": "^0.28.2",

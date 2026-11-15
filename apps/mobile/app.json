@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "IRM RMS Prototype",
-    "slug": "irm-rms-prototype",
+    "name": "IRM RMS",
+    "slug": "irm-rms",
     "scheme": "irmrmsdemo",
     "version": "0.1.0",
     "icon": "./assets/irm-app-icon.png",
@@ -37,7 +37,7 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Allow IRM RMS to scan fictional bin barcodes.",
+          "cameraPermission": "Allow IRM RMS to scan sample bin barcodes.",
           "recordAudioAndroid": false,
           "microphonePermission": false
         }

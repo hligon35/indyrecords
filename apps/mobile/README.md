@@ -1,10 +1,10 @@
-# IRM RMS synthetic Zebra app
+# IRM RMS mobile operations
 
-Run npm ci from this directory. Use npm run native:android followed by npm run android to generate and run the custom native app; npm run build:android exports its JavaScript bundle only. The compact app has Scan, Warehouse, Driver and Account tabs, with tablet navigation and shared protected sessions. The original keyboard-wedge scanner and on-device scan simulator remain available. Warehouse adds customer-specific work orders, inbound/outbound processing, location tracking, courier handoffs and a durable command queue. See [all-platform startup commands](../../docs/compact-ui.md).
+Run npm ci from this directory. This app requires a custom Expo development build; Expo Go is incompatible with SDK 54 on current iOS and cannot load the native database/scanner modules. Android: use npm run native:android followed by npm run android. iOS from Windows: run `npx eas-cli login`, `npx eas-cli build:configure` once, then `npx eas-cli build --platform ios --profile development`; install the build and use `npm run start:dev-client`. `npm run build:android` exports its JavaScript bundle only. The compact app has Scan, Warehouse, Driver and Account tabs, with tablet navigation and shared protected sessions. The original keyboard-wedge scanner and on-device scan simulator remain available. Warehouse adds customer-specific work orders, inbound/outbound processing, location tracking, courier handoffs and a durable command queue. See [all-platform startup commands](../../docs/compact-ui.md).
 
 ## DataWedge input
 
-Use keyboard output with an Enter key event for the existing scan field. For native intent input, build/install the development app and select intent mode in Warehouse Workflows. Configure the profile for package com.alphazonelabs.irmrmsdemo, Broadcast Intent action com.alphazonelabs.irmrmsdemo.SCAN, DEFAULT category, explicit package and signature verification. Disable keyboard output when intent output is enabled. The native module is automatically linked from modules/irm-scanner. Expo Go has no custom native receiver and can use keyboard input instead.
+Use keyboard output with an Enter key event for the existing scan field. For native intent input, install the custom development build and select intent mode in Warehouse Workflows. Configure the profile for package com.alphazonelabs.irmrmsdemo, Broadcast Intent action com.alphazonelabs.irmrmsdemo.SCAN, DEFAULT category, explicit package and signature verification. Disable keyboard output when intent output is enabled. The native module is automatically linked from modules/irm-scanner. Expo Go has no custom native receiver and can use keyboard input instead.
 
 The receiver accepts bounded input only while observed and the app has window focus. JavaScript normalizes barcodes, rejects records outside the current synthetic workspace and suppresses repeated intent bursts. Intents never establish user identity or permissions. Validate the actual Zebra model, Android version and DataWedge profile before rollout.
 
@@ -12,7 +12,7 @@ The receiver accepts bounded input only while observed and the app has window fo
 
 Default workflow synchronization acknowledges commands against a durable on-device synthetic simulator. Confirmed means acknowledged by that selected receiver, not by an operational IRM system. Pending commands and projected workspace changes are committed in one SQLite transaction. Restart recovery, single-flight sync, retry backoff and conflict review are integrated. Conflicted events remain in the queue; a reviewed replacement has a new event ID and preserves the original superseded event.
 
-For verified local D1 testing, run the API on loopback with SYNTHETIC_WORKFLOWS_ENABLED=true, an approved local test identity and explicit customer grants. On a test device run adb reverse tcp:8787 tcp:8787. The Account tab supports system-browser login with irmrmsdemo://auth and OS-protected short-lived session storage. Do not expose the Worker on a public or LAN hostname. Queues are isolated by user and customer. Real-provider/device acceptance remains rollout work. No real records may be stored in this prototype database.
+For verified local D1 testing, run the API on loopback with SYNTHETIC_WORKFLOWS_ENABLED=true, an approved local test identity and explicit customer grants. On a test device run adb reverse tcp:8787 tcp:8787. The Account tab supports system-browser login with irmrmsdemo://auth and OS-protected short-lived session storage. Do not expose the Worker on a public or LAN hostname. Queues are isolated by user and customer. Real-provider/device acceptance remains rollout work. Keep only approved data in a configured production system; the local sample database is for testing.
 
 ## Native build checks
 
@@ -28,4 +28,4 @@ For full APK packaging on Windows, use a short checkout path to avoid Ninja/CMak
 
 Phase B adds Driver assignments, camera/keyboard/Zebra input and an isolated durable SQLite queue. See [field operations](../../docs/phase-b-field-operations.md) for verified-session use, conflict review, platform evidence and remaining device gates.
 
-Shared account login now serves inventory, driver and warehouse panels. Verified queues require a custom SQLCipher-enabled build; Expo Go cannot supply encrypted storage. See ../../docs/backend-release-runbook.md for migration/key handling and remaining acceptance gates.
+Shared account login now serves inventory, driver and warehouse panels. Verified queues require a custom SQLCipher-enabled build; Expo Go cannot supply encrypted storage or the custom Zebra receiver. See ../../docs/backend-release-runbook.md for migration/key handling and remaining acceptance gates.

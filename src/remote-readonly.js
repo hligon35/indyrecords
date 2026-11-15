@@ -13,7 +13,7 @@ export function createReadOnlyConnection({fetchImpl=fetch}={}) {
     catch(error){if(current===generation&&error.status===401){generation++;token=null;api=null;endpoint='';user=null}throw error}
   }
   async function localManagementWrite(method,input){
-   requireConnection();if(!['localhost','127.0.0.1'].includes(new URL(endpoint).hostname))throw Error('Changes require a local synthetic API');
+   requireConnection();if(!['localhost','127.0.0.1'].includes(new URL(endpoint).hostname))throw Error('Changes require a local sample API');
    const current=generation,credential=token;
    try{const result=await createApiClient({baseUrl:endpoint,getAccessToken:()=>credential,fetchImpl,readOnly:false})[method](input);if(current!==generation)throw Error('Connection changed during request');return result}catch(error){if(current===generation&&error.status===401)connection.disconnect();throw error}
   }
@@ -49,7 +49,7 @@ export function createReadOnlyConnection({fetchImpl=fetch}={}) {
     },
     async getWorkspace(customerId){return read('getWorkspace',customerId)},
     async submitSyntheticCommand(customerId,command){
-      requireConnection();if(!['localhost','127.0.0.1'].includes(new URL(endpoint).hostname))throw Error('Warehouse changes require a local synthetic API');
+      requireConnection();if(!['localhost','127.0.0.1'].includes(new URL(endpoint).hostname))throw Error('Warehouse changes require a local sample API');
       const current=generation;const credential=token;
       let result;try{result=await createApiClient({baseUrl:endpoint,getAccessToken:()=>credential,fetchImpl,readOnly:false}).submitWarehouseCommand(customerId,command)}catch(error){if(current===generation&&error.status===401)connection.disconnect();throw error}
       if(current!==generation)throw Error('Connection changed during request');return result;
