@@ -1,6 +1,6 @@
 # IRM RMS synthetic Zebra app
 
-Run npm ci, npm start or npm run build:android from this directory. The original keyboard-wedge scanner and on-device scan simulator remain available. Warehouse Workflows adds customer-specific work orders, inbound/outbound processing, location tracking, courier handoffs and a durable command queue.
+Run npm ci from this directory. Use npm run native:android followed by npm run android to generate and run the custom native app; npm run build:android exports its JavaScript bundle only. The compact app has Scan, Warehouse, Driver and Account tabs, with tablet navigation and shared protected sessions. The original keyboard-wedge scanner and on-device scan simulator remain available. Warehouse adds customer-specific work orders, inbound/outbound processing, location tracking, courier handoffs and a durable command queue. See [all-platform startup commands](../../docs/compact-ui.md).
 
 ## DataWedge input
 
@@ -12,7 +12,7 @@ The receiver accepts bounded input only while observed and the app has window fo
 
 Default workflow synchronization acknowledges commands against a durable on-device synthetic simulator. Confirmed means acknowledged by that selected receiver, not by an operational IRM system. Pending commands and projected workspace changes are committed in one SQLite transaction. Restart recovery, single-flight sync, retry backoff and conflict review are integrated. Conflicted events remain in the queue; a reviewed replacement has a new event ID and preserves the original superseded event.
 
-For verified local D1 testing, run the API on loopback with SYNTHETIC_WORKFLOWS_ENABLED=true, an approved local test user/session and explicit customer grants. On a test device run adb reverse tcp:8787 tcp:8787; use the temporary session field to connect. Do not expose the Worker on a public or LAN hostname. Sessions stay in memory; queues are isolated by user and customer. The separate Approved Account panel now supports system-browser login with irmrmsdemo://auth and OS-protected short-lived session storage. Real-provider/device acceptance remains rollout work. No real records may be stored in this prototype database.
+For verified local D1 testing, run the API on loopback with SYNTHETIC_WORKFLOWS_ENABLED=true, an approved local test identity and explicit customer grants. On a test device run adb reverse tcp:8787 tcp:8787. The Account tab supports system-browser login with irmrmsdemo://auth and OS-protected short-lived session storage. Do not expose the Worker on a public or LAN hostname. Queues are isolated by user and customer. Real-provider/device acceptance remains rollout work. No real records may be stored in this prototype database.
 
 ## Native build checks
 
@@ -22,7 +22,7 @@ See [phases 9–12](../../docs/phases-9-12.md) for the API, role policy, custody
 
 ## Phase 15 account and dependency checks
 
-Approved Account is read-only and separate from local warehouse sandbox sessions. expo-web-browser handles the system-browser flow; expo-secure-store protects the short session and its plugin excludes protected data from device backup. Use the exact configured native callback and HTTPS API origin. Patched image-size/PostCSS overrides retain Metro compatibility; run npm run test:build-deps. See [phases 13–15](../../docs/phases-13-15.md) for audit results and acceptance gates.
+Account provides the shared approved session; local synthetic workspace controls remain available without it. expo-web-browser handles the system-browser flow; expo-secure-store protects the short session and its plugin excludes protected data from device backup. Use the exact configured native callback and approved API origin. Patched image-size/PostCSS overrides retain Metro compatibility; run npm run test:build-deps. The Metro compatibility wrapper converts asset paths to bytes for image-size 2.x in both the supervisor and transform worker; it does not modify installed dependencies. See [phases 13–15](../../docs/phases-13-15.md) for audit results and acceptance gates.
 
 For full APK packaging on Windows, use a short checkout path to avoid Ninja/CMake path limits. This host also shortened clang++.exe to CLANG_~1.EXE, losing automatic C++ linker mode. The optional scripts/windows-android-ndk.init.gradle explicitly selects that mode for shared-library linking. From the generated android directory, pass --init-script ../../../scripts/windows-android-ndk.init.gradle to Gradle. This is a build-host workaround, not a dependency source patch. Generated release builds currently use Android's test key; they are synthetic test packages, never production/store releases. Enterprise signing and device acceptance remain pending.
 

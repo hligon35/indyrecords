@@ -11,7 +11,9 @@
     "build:android": "expo export --platform android --output-dir dist/android",
     "test:build-deps": "node scripts/check-build-dependencies.cjs",
     "build:ios": "expo export --platform ios --output-dir dist/ios",
-    "verify:ios-native": "node ../../scripts/verify-ios-native.mjs"
+    "verify:ios-native": "node ../../scripts/verify-ios-native.mjs",
+    "native:android": "expo prebuild --platform android --no-install",
+    "native:ios": "expo prebuild --platform ios --no-install"
   },
   "dependencies": {
     "expo": "~54.0.0",
@@ -22,7 +24,8 @@
     "expo-status-bar": "~3.0.0",
     "expo-web-browser": "~15.0.11",
     "react": "19.1.0",
-    "react-native": "0.81.5"
+    "react-native": "0.81.5",
+    "react-native-safe-area-context": "~5.6.0"
   },
   "devDependencies": {
     "expo-doctor": "^1.17.0"

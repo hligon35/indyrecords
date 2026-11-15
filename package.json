@@ -12,7 +12,14 @@
     "verify:pilot": "node scripts/pilot-readiness.mjs",
     "verify:restore": "node scripts/local-restore-drill.mjs --synthetic-local",
     "build:sample": "node scripts/build-sample-dataset.mjs",
-    "build:sample-documents": "node scripts/build-sample-documents.mjs"
+    "build:sample-documents": "node scripts/build-sample-documents.mjs",
+    "dev:web": "node scripts/serve-web.mjs",
+    "build:windows": "npm --prefix apps/windows run build",
+    "prepare:android": "npm --prefix apps/mobile run native:android",
+    "dev:ios": "npm --prefix apps/mobile run ios",
+    "dev:windows": "npm --prefix apps/windows run dev",
+    "dev:android": "npm --prefix apps/mobile run android",
+    "prepare:ios": "npm --prefix apps/mobile run native:ios"
   },
   "devDependencies": {
     "esbuild": "^0.28.2",
