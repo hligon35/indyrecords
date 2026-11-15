@@ -9,10 +9,13 @@
     "ios": "expo run:ios",
     "doctor": "expo-doctor",
     "build:android": "expo export --platform android --output-dir dist/android",
-    "test:build-deps": "node scripts/check-build-dependencies.cjs"
+    "test:build-deps": "node scripts/check-build-dependencies.cjs",
+    "build:ios": "expo export --platform ios --output-dir dist/ios",
+    "verify:ios-native": "node ../../scripts/verify-ios-native.mjs"
   },
   "dependencies": {
     "expo": "~54.0.0",
+    "expo-camera": "~17.0.10",
     "expo-crypto": "~15.0.9",
     "expo-secure-store": "~15.0.8",
     "expo-sqlite": "~16.0.0",

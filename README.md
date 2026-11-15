@@ -16,3 +16,5 @@ Latest continuation: [synthetic administration and pilot evidence](docs/two-phas
 Expanded product scope: [shredding-service competitive features](docs/shredding-service-scope.md).
 
 Phase A implementation: [Commercial Office workflow and limits](docs/phase-a-commercial.md).
+
+Phase B implementation: [Dispatch, driver operations, SAMPLE certificates and field reporting](docs/phase-b-field-operations.md).

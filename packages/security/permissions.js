@@ -2,10 +2,10 @@
 export const ROLES=Object.freeze(['viewer','warehouse','dispatcher','manager','admin']);
 const grants=Object.freeze({
  viewer:['records:read','reports:read'],
- warehouse:['records:read','reports:read','scans:create','orders:read'],
- dispatcher:['records:read','reports:read','orders:read','orders:manage'],
- manager:['commercial:read','commercial:manage','records:read','reports:read','orders:read','orders:manage','scans:create','audit:read','customers:manage','integrations:read','integrations:stage'],
- admin:['commercial:read','commercial:manage','records:read','reports:read','orders:read','orders:manage','scans:create','audit:read','users:manage','customers:manage','integrations:read','integrations:stage']
+ warehouse:['field:read','field:drive','records:read','reports:read','scans:create','orders:read'],
+ dispatcher:['field:read','field:manage','records:read','reports:read','orders:read','orders:manage'],
+ manager:['field:read','field:manage','field:certificate','commercial:read','commercial:manage','records:read','reports:read','orders:read','orders:manage','scans:create','audit:read','customers:manage','integrations:read','integrations:stage'],
+ admin:['field:read','field:manage','field:certificate','commercial:read','commercial:manage','records:read','reports:read','orders:read','orders:manage','scans:create','audit:read','users:manage','customers:manage','integrations:read','integrations:stage']
 });
 export function can(principal,permission,{customerId}={}){
  if(!principal||principal.active!==true||typeof principal.id!=='string'||!principal.id.trim())return false;

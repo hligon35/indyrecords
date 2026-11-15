@@ -1,3 +1,5 @@
+import {continueFieldExport} from './field-export.js';
+import {fieldRoute} from './field.js';
 import {commercialRoute} from './commercial.js';
 import {administrationRoute} from './administration.js';
 import {authRateLimit} from './security.js';
@@ -31,6 +33,7 @@ async function routes(request,env,principal,localDemo){
     await env.DB.prepare('UPDATE app_sessions SET revoked_at=? WHERE token_hash=?').bind(Date.now(),await digest(token)).run();
     return json({status:'signed_out'});
   }
+  if(path.startsWith('/v1/field/'))return fieldRoute(request,env,principal,scanBody);
   if(path.startsWith('/v1/commercial/'))return commercialRoute(request,env,principal,scanBody);
   if(path.startsWith('/v1/administration/'))return administrationRoute(request,env,principal,scanBody);
   if(path.startsWith('/v1/management/'))return managementRoute(request,env,principal,scanBody);
@@ -107,7 +110,7 @@ async function routes(request,env,principal,localDemo){
   }
   return fail('Not found',404);
 }
-async function handler(request,env){
+async function handler(request,env,context){
  if(!env.DB)return fail('Database binding unavailable',503);
  const url=new URL(request.url);
  if(url.pathname==='/health'&&request.method==='GET')return json({status:'ok',service:'irm-rms-demo-api'});
@@ -144,6 +147,7 @@ async function handler(request,env){
   await env.DB.prepare('INSERT INTO access_audit(id,actor_id,action,resource_type,resource_id,decision) VALUES(?,?,?,?,?,?)')
    .bind(requestId,principal?.id||null,request.method,'api',url.pathname.startsWith('/v1/records/')?'barcode-sha256:'+await digest(url.pathname.slice('/v1/records/'.length)):url.pathname.slice(0,120),response.ok?'allow':'deny').run();
  }catch{return fail('Audit storage unavailable',503)}
+ const exportId=response.headers.get('x-synthetic-export-id'),exportCustomer=response.headers.get('x-synthetic-export-customer'),exportActor=response.headers.get('x-synthetic-export-actor');for(const key of ['x-synthetic-export-id','x-synthetic-export-customer','x-synthetic-export-actor'])response.headers.delete(key);if(exportId&&context?.waitUntil)context.waitUntil(continueFieldExport(env,exportCustomer,exportId,exportActor).catch(()=>({status:'resumable'})));
  response.headers.set('x-request-id',requestId);
  return response;
 }
@@ -151,13 +155,13 @@ function allowedOrigin(request,env){
  const origin=request.headers.get('origin');
  return origin===new URL(request.url).origin||(env.READONLY_ALLOWED_ORIGINS||'').split(',').map(x=>x.trim()).filter(Boolean).includes(origin);
 }
-async function fetchHandler(request,env){
+async function fetchHandler(request,env,context){
  const origin=request.headers.get('origin');
  if(request.method==='OPTIONS'){
   if(!origin||!allowedOrigin(request,env))return fail('Origin not allowed',403);
   return new Response(null,{status:204,headers:{'access-control-allow-origin':origin,'access-control-allow-methods':'GET, POST, DELETE, OPTIONS','access-control-allow-headers':'Authorization, Content-Type','access-control-max-age':'300','vary':'Origin'}});
  }
- const response=await handler(request,env);
+ const response=await handler(request,env,context);
  if(origin&&allowedOrigin(request,env))response.headers.set('access-control-allow-origin',origin);
  response.headers.set('vary','Origin');response.headers.set('x-content-type-options','nosniff');
  return response;

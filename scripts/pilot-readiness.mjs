@@ -15,7 +15,7 @@ for(const [name,args] of [['tests',['--test','--test-reporter=tap','tests/*.test
 }
 const path=process.argv.find(x=>x.startsWith('--evidence='))?.slice('--evidence='.length);let external={};
 if(path){const data=await readFile(resolve(root,path),'utf8');if(data.length>65536)throw Error('Evidence file too large');external=JSON.parse(data);if(external.commit!==git)throw Error('Evidence must refer to the current commit');}
-for(const name of ['localD1','androidBundle','androidInstaller','zebraModule','windowsInstaller'])if(external.checks?.[name]){
+for(const name of ['localD1','androidBundle','androidInstaller','iosBundle','iosNative','zebraModule','windowsInstaller'])if(external.checks?.[name]){
  const supplied=external.checks[name];checks[name]={passed:false,reference:supplied.reference||null};
  if(supplied.passed){
   const proof=resolve(root,supplied.reference||'');if(!proof.startsWith(root+sep)||!supplied.sha256)throw Error('Platform evidence requires a workspace file and SHA-256');

@@ -12,8 +12,22 @@
     },
     "android": {
       "package": "com.alphazonelabs.irmrmsdemo",
-      "permissions": []
+      "permissions": [],
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     },
-    "plugins": ["expo-secure-store", "expo-web-browser"]
+    "plugins": [
+      "expo-secure-store",
+      "expo-web-browser",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow IRM RMS to scan fictional bin barcodes.",
+          "recordAudioAndroid": false,
+          "microphonePermission": false
+        }
+      ]
+    ]
   }
 }

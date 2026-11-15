@@ -1,5 +1,5 @@
 export function evaluatePilot({checks={},advisories={high:null,critical:null},evidence={},commit='unknown'}={}){
- const requiredChecks=['workingTree','tests','webBuild','workerPackage','localD1','androidBundle','androidInstaller','zebraModule','windowsInstaller'];
+ const requiredChecks=['workingTree','tests','webBuild','workerPackage','localD1','androidBundle','androidInstaller','iosBundle','iosNative','zebraModule','windowsInstaller'];
  const requiredEvidence=['identityProvider','vendorContracts','zebraDevice','windowsRuntime','signing','restoreDrill','managementApproval'];
  const software=requiredChecks.map(name=>({name,passed:checks[name]?.passed===true,reference:checks[name]?.reference||null}));
  const approvals=requiredEvidence.map(name=>({name,status:evidence[name]?.status==='approved'?'reported-approved':'pending',reviewer:evidence[name]?.reviewer||null,reference:evidence[name]?.reference||null}));

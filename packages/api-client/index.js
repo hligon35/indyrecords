@@ -21,6 +21,10 @@ export function createApiClient({baseUrl,getAccessToken,fetchImpl=fetch,readOnly
   return payload;
  }
  return {
+  getFieldWorkspace:customerId=>request('/v1/field/workspace?'+new URLSearchParams({customerId})),
+  getFieldDrivers:customerId=>request('/v1/field/drivers?'+new URLSearchParams({customerId})),
+  fieldCommand:input=>request('/v1/field/commands',{method:'POST',body:input}),
+  fieldBilling:input=>request('/v1/field/billing',{method:'POST',body:input}),
   getCommercialWorkspace:customerId=>request('/v1/commercial/workspace?'+new URLSearchParams({customerId})),
   commercialCommand:input=>request('/v1/commercial/commands',{method:'POST',body:input}),
   getCustomerProfiles:()=>request('/v1/management/customers'),

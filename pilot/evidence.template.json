@@ -25,6 +25,16 @@
       "passed": false,
       "reference": null,
       "sha256": null
+    },
+    "iosBundle": {
+      "passed": false,
+      "reference": null,
+      "sha256": null
+    },
+    "iosNative": {
+      "passed": false,
+      "reference": null,
+      "sha256": null
     }
   },
   "evidence": {
