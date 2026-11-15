@@ -10,6 +10,9 @@ function factory(file,handles){return createOfflineWarehouseStore({openDatabase:
  const db=new DatabaseSync(file);handles.push(db);
  const adapter={execAsync:async sql=>db.exec(sql),getFirstAsync:async(sql,...args)=>db.prepare(sql).get(...args),getAllAsync:async(sql,...args)=>db.prepare(sql).all(...args),runAsync:async(sql,...args)=>{const result=db.prepare(sql).run(...args);return {changes:Number(result.changes)}},async withExclusiveTransactionAsync(callback){db.exec('BEGIN IMMEDIATE');try{await callback(adapter);db.exec('COMMIT')}catch(error){db.exec('ROLLBACK');throw error}}};return adapter;
 }})}
+test('warehouse refresh cannot overwrite an unacknowledged offline projection',async()=>{
+ const handles=[],store=factory(':memory:',handles);try{const original=await store.loadWorkspace('user-1','c2');await store.stageCommand('user-1','c2',{type:'create_order',clientEventId:'demo-pending-order',orderId:'demo-order',operation:'Retrieval',barcodes:['IRM-BX-1002']});await assert.rejects(store.cacheWorkspace('user-1','c2',original),/pending/);assert.equal((await store.loadWorkspace('user-1','c2')).records[0].status,'Reserved')}finally{for(const db of handles)db.close()}
+});
 test('SQLite offline workflows survive restart, recover interrupted sends and isolate users',async()=>{
  const folder=mkdtempSync(join(tmpdir(),'irm-offline-')),handles=[];const file=join(folder,'queue.db');
  try{

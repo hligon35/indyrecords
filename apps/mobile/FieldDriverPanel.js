@@ -6,11 +6,15 @@ import { fieldStore } from "./storage/field-store.js";
 import { createApiClient } from "../../packages/api-client/index.js";
 import { createSyncCoordinator } from "../../packages/api-client/sync.js";
 import { subscribeScanner } from "./scanner.js";
+import {useAccount} from './AccountProvider.js';
+import {accountSession} from './account-session.js';
 function FieldDriverPanel() {
-  const [actor, setActor] = useState("local-demo-driver"), [tenant, setTenant] = useState("c2"), [token, setToken] = useState(""), [connected, setConnected] = useState(false), [state, setState] = useState(null), [queue, setQueue] = useState([]), [selected, setSelected] = useState(""), [barcode, setBarcode] = useState("DEMO-BIN-0001"), [production, setProduction] = useState("2"), [ack, setAck] = useState("demo-customer"), [reason, setReason] = useState("demo-review"), [notice, setNotice] = useState("On-device synthetic driver demonstration."), [replacement, setReplacement] = useState(null), [busy, setBusy] = useState(false), [intent, setIntent] = useState(false), [camera, setCamera] = useState(false);
+  const account=useAccount();
+  const [actor, setActor] = useState("local-demo-driver"), [tenant, setTenant] = useState("c2"), [connected, setConnected] = useState(false), [state, setState] = useState(null), [queue, setQueue] = useState([]), [selected, setSelected] = useState(""), [barcode, setBarcode] = useState("DEMO-BIN-0001"), [production, setProduction] = useState("2"), [ack, setAck] = useState("demo-customer"), [reason, setReason] = useState("demo-review"), [notice, setNotice] = useState("On-device synthetic driver demonstration."), [replacement, setReplacement] = useState(null), [busy, setBusy] = useState(false), [intent, setIntent] = useState(false), [camera, setCamera] = useState(false);
   const [permission, requestPermission] = useCameraPermissions();
   const lock = useRef(false), generation = useRef(0), scanRef = useRef(null), coordinator = useRef(null);
-  const api = () => createApiClient({ baseUrl: "http://127.0.0.1:8787", getAccessToken: () => token, readOnly: false });
+  const api = () => {const s=accountSession.current;if(!s)throw Error('Sign in through Approved account first');return createApiClient({baseUrl:s.baseUrl,getAccessToken:()=>s.accessToken,readOnly:false})};
+  useEffect(()=>{setConnected(false);setActor('local-demo-driver');setState(null);setQueue([]);setCamera(false);setReplacement(null);generation.current++;},[account?.accessToken,account?.user?.id,account?.user?.role,JSON.stringify(account?.customerIds),account?.expiresAt,account?.baseUrl]);
   async function reload() {
     setState(await fieldStore.loadWorkspace(actor, tenant));
     setQueue(await fieldStore.workflowRepository(actor, tenant).read());
@@ -37,7 +41,7 @@ function FieldDriverPanel() {
   }, [actor, tenant]);
   useEffect(() => {
     const sub = AppState.addEventListener("change", (s) => {
-      if (s !== "active") setCamera(false);
+      if (s !== "active") {setCamera(false);setIntent(false);}
     });
     return () => sub.remove();
   }, []);
@@ -62,6 +66,7 @@ function FieldDriverPanel() {
   }
   async function stage(type, input = {}) {
     await run(async () => {
+      if(actor!=='local-demo-driver'&&!connected)throw Error('Reconnect the approved account before recording driver work');
       const j = state.jobs.find((j2) => j2.id === selected);
       if (!j) throw Error("Select an assignment");
       await fieldStore.stageCommand(actor, tenant, { clientEventId: "demo-" + Crypto.randomUUID(), type, input: { ...input, jobId: j.id, ...replacement ? { reviewNote: reason } : {} }, expectedJobVersion: j.version }, replacement);
@@ -77,18 +82,23 @@ function FieldDriverPanel() {
   };
   async function connect() {
     await run(async () => {
+      const cached=accountSession.current;
+      if(cached?.offline){await fieldStore.unlockScope(cached,tenant);setActor(cached.user.id);setConnected(true);setNotice('Resumed existing protected assignments offline until the original session expiry. Synchronize when connected.');return}
       const current = await api().getSession();
       if (current.user.role !== "warehouse" || !current.customerIds.includes(tenant)) throw Error("An active scoped warehouse driver session is required");
+      const verified=await accountSession.verifyCurrent();
       const s = await api().getFieldWorkspace(tenant);
+      await fieldStore.unlockScope(verified,tenant);
       const existing = await fieldStore.workflowRepository(current.user.id, tenant).read();
       if (!existing.some((e) => ["pending", "sending"].includes(e.status))) await fieldStore.cacheWorkspace(current.user.id, tenant, s);
       setActor(current.user.id);
       setConnected(true);
-      setNotice("Verified loopback driver session connected. No public field API is enabled.");
+      setNotice("Approved account connected. Driver queue is protected on this device; no public field API is enabled.");
     });
   }
   async function sync() {
     await run(async () => {
+      if(actor!=='local-demo-driver'&&!connected)throw Error('Sign in again to resume this protected queue');
       const repository = fieldStore.workflowRepository(actor, tenant);
       const receiver = connected ? { submitScan: async (event) => {
         if (event.actorId !== actor) throw Error("Queue owner changed");
@@ -97,8 +107,9 @@ function FieldDriverPanel() {
       coordinator.current = createSyncCoordinator({ repository, api: receiver });
       const result = await coordinator.current.synchronize();
       if (result.status === "auth-required") {
+        await accountSession.clear();
         setConnected(false);
-        setToken("");
+
         setActor("local-demo-driver");
         setState(null);
         setQueue([]);
@@ -125,17 +136,13 @@ function FieldDriverPanel() {
       setActor("local-demo-driver");
       setState(null);
       setQueue([]);
-      if (previous) try {
-        await api().endSession();
-      } catch {
-        setNotice("Session revocation could not be confirmed; it remains subject to expiry.");
-      }
-      setToken("");
+      if (previous) fieldStore.lockVerified();
+
       setNotice("Disconnected. Prior driver queues remain isolated in SQLite.");
     });
   }
   const btn = (label, fn) => <Pressable accessibilityRole="button" disabled={busy} onPress={fn} style={{ padding: 12, backgroundColor: "#146d9c", borderRadius: 8 }}><Text style={{ color: "white", fontWeight: "700" }}>{label}</Text></Pressable>;
-  return <View style={{ padding: 16, backgroundColor: "white", borderRadius: 16, gap: 10 }}><Text style={{ fontSize: 20, fontWeight: "800" }}>Driver assignments · SYNTHETIC</Text><Text>iPhone camera, Zebra intent or keyboard input. No real destruction or road-safe navigation. On-device acknowledgments are simulator acknowledgments.</Text><TextInput accessibilityLabel="Driver customer scope" editable={!busy && !connected} value={tenant} onChangeText={setTenant} />{!connected ? <><TextInput accessibilityLabel="Temporary local driver session" editable={!busy} secureTextEntry value={token} onChangeText={setToken} placeholder="Verified local driver session" />{btn("Connect verified loopback session", connect)}</> : btn("Disconnect and revoke session", disconnect)}{btn("Refresh assignments", refresh)}{state?.jobs.map((j) => <Pressable accessibilityRole="button" key={j.id} disabled={busy} onPress={() => setSelected(j.id)}><Text style={{ fontWeight: selected === j.id ? "800" : "400" }}>{j.reviewRequired ? "SUPERVISOR REVIEW REQUIRED \xB7 " : ""}{j.name} · {j.address} · {j.timezone} · {j.date} · {j.status} · Bins {j.bins.length}/{j.containers}</Text></Pressable>)}{btn("Start selected job", () => stage("start_job"))}{btn("Record arrival", () => stage("arrive_job"))}<TextInput accessibilityLabel="Driver bin barcode" editable={!busy} value={barcode} onChangeText={setBarcode} onSubmitEditing={() => scanRef.current?.(barcode)} />{btn("Record bin scan", () => scanRef.current?.(barcode))}{btn(intent ? "Use keyboard instead" : "Use Zebra intent input", () => setIntent(!intent))}{btn(camera ? "Close camera" : "Scan using camera", async () => {
+  return <View style={{ padding: 16, backgroundColor: "white", borderRadius: 16, gap: 10 }}><Text style={{ fontSize: 20, fontWeight: "800" }}>Driver assignments · SYNTHETIC</Text><Text>iPhone camera, Zebra intent or keyboard input. No real destruction or road-safe navigation. On-device acknowledgments are simulator acknowledgments.</Text><TextInput accessibilityLabel="Driver customer scope" editable={!busy && !connected} value={tenant} onChangeText={setTenant} />{!connected ? <><Text>{account ? "Use your approved warehouse account for this customer scope." : "Sign in above, or keep using the on-device demonstration."}</Text>{btn("Connect approved driver account", connect)}</> : btn("Return to on-device demonstration", disconnect)}{btn("Refresh assignments", refresh)}{state?.jobs.map((j) => <Pressable accessibilityRole="button" key={j.id} disabled={busy} onPress={() => setSelected(j.id)}><Text style={{ fontWeight: selected === j.id ? "800" : "400" }}>{j.reviewRequired ? "SUPERVISOR REVIEW REQUIRED \xB7 " : ""}{j.name} · {j.address} · {j.timezone} · {j.date} · {j.status} · Bins {j.bins.length}/{j.containers}</Text></Pressable>)}{btn("Start selected job", () => stage("start_job"))}{btn("Record arrival", () => stage("arrive_job"))}<TextInput accessibilityLabel="Driver bin barcode" editable={!busy} value={barcode} onChangeText={setBarcode} onSubmitEditing={() => scanRef.current?.(barcode)} />{btn("Record bin scan", () => scanRef.current?.(barcode))}{btn(intent ? "Use keyboard instead" : "Use Zebra intent input", () => setIntent(!intent))}{btn(camera ? "Close camera" : "Scan using camera", async () => {
     if (camera) {
       setCamera(false);
       return;

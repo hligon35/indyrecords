@@ -25,6 +25,22 @@ try{
  assert.deepEqual(await api.searchRecords({limit:100}),before);
  await assert.rejects(api.getOperationsStatus('c3'),e=>e.status===403);
  const history=await api.getOperationsHistory(customerId,tasks.items[0].id);assert.ok(history.items.some(h=>h.outcome==='succeeded'));
+ const command=(resource,input={})=>api.operationsResourceCommand({resource,customerId,...input});
+ const created=[];for(const kind of ['inventory','invoices','custody','payments','field','field_custody','warehouse'])created.push(await command('exports',{kind,requestKey:'demo-local-report-'+kind.replaceAll('_','-')}));
+ await api.runOperations({customerId,limit:10});
+ for(const x of created){const file=await api.getOperationsResource('exports/chunk',{customerId,exportId:x.export.id,offset:0});assert.ok(file.content.startsWith('\uFEFF'));assert.equal(file.nextOffset,null)}
+ const index=await api.getOperationsResource('entities',{customerId,domain:'commercial',collection:'accounts',q:'Café'});assert.equal(index.items.length,1);
+ const archive=await command('archive',{type:'invoice',id:c.invoices[0].id,format:'html',requestKey:'demo-local-immutable-invoice'});
+ const retained=await api.getOperationsResource('archive',{customerId,documentId:archive.id});assert.match(retained.content,/SAMPLE INVOICE/);
+ assert.equal((await command('archive',{type:'invoice',id:c.invoices[0].id,format:'html',requestKey:'demo-local-immutable-invoice'})).status,'already_accepted');
+ const settlement=[['ExternalID','Kind','Reference','AmountCents','Currency']];let n=0;
+ for(const p of c.payments.filter(p=>p.status==='captured')){settlement.push(['demo-local-settlement-'+(++n),'capture',p.id,p.amountCents,'USD']);for(const r of p.refunds.filter(r=>r.status==='refunded'))settlement.push(['demo-local-settlement-'+(++n),'refund',r.id,r.amountCents,'USD'])}
+ const finance=await command('reconciliation',{csv:settlement.map(r=>r.join(',')).join('\n')});assert.equal(finance.run.report.exceptions,0);
+ await command('reconciliation/review',{reconciliationId:finance.run.id,expectedVersion:finance.run.version,reason:'Demo settlement comparison reviewed'});
+ const monitor=await command('monitor');assert.equal(monitor.outboundNotificationsEnabled,false);
+ const alert=monitor.alerts.find(a=>a.status==='open');if(alert)await command('monitor/acknowledge',{alertKey:alert.alert_key,expectedVersion:alert.version,reason:'Demo operator acknowledgment'});
+ const retention=await command('maintenance',{retentionDays:90});assert.equal(retention.dryRun,true);
  await writeFile(new URL('operations-local.json',out),JSON.stringify({passed:true,synthetic:true,generatedAt:new Date().toISOString(),installedManifest:installed.manifest,tasks:tasks.items.map(t=>({kind:t.kind,status:t.status,attempts:t.attempts})),allTaskKindsVerified:true,sampleReplaySafe:true,queueReplaySafe:true,sourceInventoryUnchanged:true,foreignScopeDenied:true,pdfGeneratedByWorker:true,pdfSha256:pdf.sha256,productionReady:false},null,2)+'\n');
- console.log('PASS: actual local D1 sample install, all four task types, billing/certificate/export effects, Worker PDF, replay and isolation.');
+ await writeFile(new URL('complete-backend-local.json',out),JSON.stringify({passed:true,synthetic:true,generatedAt:new Date().toISOString(),datasetVersion:DATASET_VERSION,normalizedReportKinds:created.map(x=>x.export.kind),allReportsComplete:true,indexedSearchVerified:true,archiveReplaySafe:true,financeMatched:finance.run.report.matched,financeExceptions:0,alertsAcknowledged:!!alert,retentionPreviewOnly:true,sourceInventoryUnchanged:true,productionReady:false},null,2)+'\n');
+ console.log('PASS: actual local D1 tasks, all seven normalized exports, indexed search, immutable archive, settlement review, alerts and retention preview.');
 }finally{await api.endSession()}

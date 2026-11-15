@@ -1,4 +1,5 @@
 import {can} from '../packages/security/permissions.js';
+import {extendedOperations,runReportExports} from './operations-extended.js';
 import {buildSampleDataset,DATASET_VERSION,sampleDriver} from '../packages/operations/sample.js';
 import {PROVIDERS} from '../packages/operations/providers.js';
 import {enqueueTask,listTasks,runTasks,controlTask} from './operations-tasks.js';
@@ -11,11 +12,15 @@ export async function operationsRoute(request,env,principal,readBody){
  const url=new URL(request.url);
  if(!['localhost','127.0.0.1'].includes(url.hostname)||env.SYNTHETIC_OPERATIONS_ENABLED!=='true'||principal.id==='demo-api-user')return json({error:'Verified local synthetic operations required'},403);
  let body,customerId=url.searchParams.get('customerId');
- if(request.method==='POST'){try{body=await readBody(request,4096);customerId=body?.customerId}catch(e){return json({error:'Invalid operations payload'},e.status||400)}}
+ if(request.method==='POST'){try{body=await readBody(request,url.pathname==='/v1/operations/reconciliation'?131072:4096);customerId=body?.customerId}catch(e){return json({error:'Invalid operations payload'},e.status||400)}}
  if(!['c1','c2','c3','c4'].includes(customerId))return json({error:'Synthetic customer required'},400);
  if(!can(principal,request.method==='GET'?'operations:read':'operations:manage',{customerId}))return json({error:'Forbidden'},403);
  const DB=env.DB;
  try{
+  if(request.method==='POST'&&!['/v1/operations/control','/v1/operations/exports/control','/v1/operations/monitor/acknowledge','/v1/operations/maintenance'].includes(url.pathname)){
+   const profile=await DB.prepare('SELECT active FROM customer_profiles WHERE customer_id=?').bind(customerId).first();if(profile?.active===0)return json({error:'Customer profile archived'},409);
+  }
+  const extended=await extendedOperations(request,env,principal,customerId,body);if(extended)return extended;
   if(request.method==='GET'&&url.pathname==='/v1/operations/document'){
    if(!['SYNTHETIC_COMMERCIAL_ENABLED','SYNTHETIC_FIELD_ENABLED','SYNTHETIC_WORKFLOWS_ENABLED'].every(k=>env[k]==='true'))return json({error:'Document workspaces are disabled'},403);
    const type=url.searchParams.get('type'),id=url.searchParams.get('id')||'',format=url.searchParams.get('format')||'json';
@@ -68,7 +73,7 @@ export async function operationsRoute(request,env,principal,readBody){
    return json({status:'installed',manifest:sample.manifest},201);
   }
   if(url.pathname==='/v1/operations/tasks')return json(await enqueueTask(DB,customerId,principal.id,body.task),201);
-  if(url.pathname==='/v1/operations/run')return json(await runTasks(env,customerId,{limit:body.limit??5}));
+  if(url.pathname==='/v1/operations/run'){const tasks=await runTasks(env,customerId,{limit:body.limit??5}),reports=await runReportExports(env,customerId,{limit:body.limit??5});return json({...tasks,reports})}
   if(url.pathname==='/v1/operations/control'){
    if(body.action==='retry'){
     const target=await DB.prepare('SELECT kind FROM backend_tasks WHERE id=? AND customer_id=?').bind(body.taskId,customerId).first();

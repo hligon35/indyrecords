@@ -22,3 +22,5 @@ Phase B implementation: [Dispatch, driver operations, SAMPLE certificates and fi
 App branding uses `assets/irm-icon.PNG` (the filename is case-sensitive on web hosts). After changing the source image, install the Windows package dependencies and run `npm run icons` from the repository root to regenerate web, Windows and mobile icons. Rebuild the web app and native installers to distribute updated icons; existing installed native apps retain their bundled icon until updated.
 
 Backend continuation: [four phases, complete sample data and operations queue](docs/backend-four-phases.md).
+
+Latest backend continuation adds Reports & Readiness, normalized report exports/entity search, settlement review, append-only sample documents, monitoring and protected shared mobile sessions. See [release and recovery procedures](docs/backend-release-runbook.md).

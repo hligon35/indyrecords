@@ -56,6 +56,8 @@ export function createReadOnlyConnection({fetchImpl=fetch}={}) {
     },
     async getCustomerProfiles(){return read('getCustomerProfiles')},
     async getManagementReport(options){return read('getManagementReport',options)},
+    async getOperationsResource(resource,options){return read('getOperationsResource',resource,options)},
+    async operationsResourceCommand(input){return localManagementWrite('operationsResourceCommand',input)},
     async getOperationsDocument(options){return read('getOperationsDocument',options)},
     async getOperationsStatus(customerId){return read('getOperationsStatus',customerId)},
     async getOperationsTasks(customerId,cursor){return read('getOperationsTasks',customerId,cursor)},

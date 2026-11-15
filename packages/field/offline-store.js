@@ -1,13 +1,14 @@
 import { seedDriverField as seedWarehouse, applyField as applyWarehouseCommand } from "./workflows.js";
 import { enqueue } from "../../src/sync-queue.js";
 import { ApiError } from "../api-client/index.js";
-function createOfflineFieldStore({ openDatabase, hashDigest }) {
+function createOfflineFieldStore({ openDatabase, hashDigest, migrateFrom }) {
   let connection;
   async function db() {
     if (!connection) connection = openDatabase("irm-field-synthetic.db").then(async (database) => {
       await database.execAsync(`PRAGMA journal_mode=WAL;
    CREATE TABLE IF NOT EXISTS states (scope TEXT PRIMARY KEY,payload TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS queue (id TEXT PRIMARY KEY,scope TEXT NOT NULL,payload TEXT NOT NULL);`);
+      if(migrateFrom)await migrateFrom(database);
       return database;
     }).catch((error) => {
       connection = null;

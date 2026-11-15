@@ -29,7 +29,7 @@ async function routes(request,env,principal,localDemo){
   const url=new URL(request.url);
   const path=url.pathname;
   if(path==='/health'&&request.method==='GET')return json({status:'ok',service:'irm-rms-demo-api'});
-  if(path==='/v1/session'&&request.method==='GET')return json({user:{id:principal.id,role:principal.role},customerIds:principal.customerIds});
+  if(path==='/v1/session'&&request.method==='GET')return json({user:{id:principal.id,role:principal.role},customerIds:principal.customerIds,expiresAt:principal.sessionExpiresAt??null});
   if(path==='/v1/session'&&request.method==='DELETE'){
     const token=request.headers.get('authorization')?.slice(7)||'';
     await env.DB.prepare('UPDATE app_sessions SET revoked_at=? WHERE token_hash=?').bind(Date.now(),await digest(token)).run();

@@ -31,7 +31,7 @@ try{
  if(db.prepare('PRAGMA foreign_key_check').all().length)throw Error('Restored database failed foreign key check');
  // A backup must not revive sessions or one-time codes revoked after the snapshot.
  db.prepare('UPDATE app_sessions SET revoked_at=?').run(Date.now());db.exec('DELETE FROM login_attempts; DELETE FROM auth_rate_limits;');
- const counts={};for(const table of ['customers','records','sandbox_workspaces','customer_profiles','integration_jobs','acceptance_observations','commercial_workspaces','field_workspaces','sample_datasets','backend_tasks','backend_task_history','access_audit'])counts[table]=db.prepare('SELECT COUNT(*) AS n FROM '+table).get().n;
+ const counts={};for(const table of ['customers','records','sandbox_workspaces','customer_profiles','integration_jobs','acceptance_observations','commercial_workspaces','field_workspaces','sample_datasets','backend_tasks','backend_task_history','report_exports','report_export_rows','document_archive','finance_reconciliations','operation_alerts','operational_entities','access_audit'])counts[table]=db.prepare('SELECT COUNT(*) AS n FROM '+table).get().n;
  const report={schemaVersion:1,synthetic:true,passed:true,generatedAt:new Date().toISOString(),backupFormat:persist?'sqlite':'sql',backupSha256:createHash('sha256').update(bytes).digest('hex'),counts,integrity:'ok',foreignKeys:'ok',sessionsRevoked:true,oneTimeCodesRemoved:true,sourceDatabaseModified:false};
  await writeFile(join(out,'restore-evidence.json'),JSON.stringify(report,null,2)+'\n');console.log('PASS: local D1 backup restored into a separate database; sessions/codes invalidated.');console.log(join(out,'restore-evidence.json'));
 }finally{db.close()}

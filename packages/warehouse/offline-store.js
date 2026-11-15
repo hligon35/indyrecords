@@ -1,13 +1,14 @@
 import {seedWarehouse,applyWarehouseCommand} from './workflows.js';
 import {enqueue} from '../../src/sync-queue.js';
 import {ApiError} from '../api-client/index.js';
-export function createOfflineWarehouseStore({openDatabase,hashDigest}){
+export function createOfflineWarehouseStore({openDatabase,hashDigest,migrateFrom}){
 let connection;
 async function db(){
  if(!connection)connection=openDatabase('irm-workflow-synthetic.db').then(async database=>{
   await database.execAsync(`PRAGMA journal_mode=WAL;
    CREATE TABLE IF NOT EXISTS states (scope TEXT PRIMARY KEY,payload TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS queue (id TEXT PRIMARY KEY,scope TEXT NOT NULL,payload TEXT NOT NULL);`);
+  if(migrateFrom)await migrateFrom(database);
   return database;
  }).catch(error=>{connection=null;throw error});
  return connection;
@@ -17,7 +18,7 @@ async function stateFrom(database,key,customerId){const row=await database.getFi
 async function loadWorkspace(actorId,customerId){return stateFrom(await db(),scope(actorId,customerId),customerId)}
 async function cacheWorkspace(actorId,customerId,state){
  if(!state?.synthetic||state.customerId!==customerId)throw Error('Synthetic workspace required');
- const database=await db();await database.runAsync('INSERT OR REPLACE INTO states(scope,payload) VALUES(?,?)',scope(actorId,customerId),JSON.stringify(state));
+ const database=await db();await database.withExclusiveTransactionAsync(async tx=>{const rows=await tx.getAllAsync('SELECT payload FROM queue WHERE scope=?',scope(actorId,customerId));if(rows.some(r=>['pending','sending'].includes(JSON.parse(r.payload).status)))throw Error('Synchronize pending commands before refreshing');await tx.runAsync('INSERT OR REPLACE INTO states(scope,payload) VALUES(?,?)',scope(actorId,customerId),JSON.stringify(state))});
 }
 async function stageCommand(actorId,customerId,command,replaces=null){
  const database=await db();let next;

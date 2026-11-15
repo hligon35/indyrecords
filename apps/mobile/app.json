@@ -42,7 +42,13 @@
           "microphonePermission": false
         }
       ],
-      "./plugins/with-loopback-network.cjs"
+      "./plugins/with-loopback-network.cjs",
+      [
+        "expo-sqlite",
+        {
+          "useSQLCipher": true
+        }
+      ]
     ]
   }
 }

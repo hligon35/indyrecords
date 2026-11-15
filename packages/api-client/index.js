@@ -21,6 +21,8 @@ export function createApiClient({baseUrl,getAccessToken,fetchImpl=fetch,readOnly
   return payload;
  }
  return {
+  getOperationsResource:(resource,options)=>{if(!['exports','exports/chunk','archive','reconciliation','monitor','entities'].includes(resource))throw new ApiError('Unsupported operations resource',400);return request('/v1/operations/'+resource+'?'+new URLSearchParams(options))},
+  operationsResourceCommand:input=>{const {resource,...body}=input;if(!['exports','exports/control','archive','reconciliation','reconciliation/review','monitor','monitor/acknowledge','maintenance'].includes(resource))throw new ApiError('Unsupported operations action',400);return request('/v1/operations/'+resource,{method:'POST',body})},
   getOperationsDocument:options=>request('/v1/operations/document?'+new URLSearchParams(options)),
   getOperationsStatus:customerId=>request('/v1/operations/status?'+new URLSearchParams({customerId})),
   getOperationsTasks:(customerId,cursor='')=>request('/v1/operations/tasks?'+new URLSearchParams({customerId,cursor})),

@@ -35,9 +35,10 @@ export async function authenticate(request,env){
  const token=request.headers.get('authorization')?.match(/^Bearer (\S+)$/)?.[1];
  if(!token||token.length>16384)return null;
  if(token.startsWith('irm_session_')){
-  const session=await env.DB.prepare('SELECT user_id FROM app_sessions WHERE token_hash=? AND revoked_at IS NULL AND expires_at>?').bind(await digest(token),Date.now()).first();
-  return session?loadPrincipal(env.DB,session.user_id,{byId:true}):null;
+  const session=await env.DB.prepare('SELECT user_id,expires_at FROM app_sessions WHERE token_hash=? AND revoked_at IS NULL AND expires_at>?').bind(await digest(token),Date.now()).first();
+  const principal=session?await loadPrincipal(env.DB,session.user_id,{byId:true}):null;
+  return principal?{...principal,sessionExpiresAt:session.expires_at}:null;
  }
  const claims=await verifyIdentity(token,env);
- return loadPrincipal(env.DB,claims.sub);
+ const principal=await loadPrincipal(env.DB,claims.sub);return principal?{...principal,sessionExpiresAt:claims.exp*1000}:null;
 }

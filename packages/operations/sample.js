@@ -2,7 +2,7 @@ import {seedCommercial, applyCommercial} from '../commercial/workflows.js';
 import {seedField, applyField} from '../field/workflows.js';
 import {seedWarehouse, applyWarehouseCommand} from '../warehouse/workflows.js';
 
-export const DATASET_VERSION = 'irm-full-sample-v1';
+export const DATASET_VERSION = 'irm-full-sample-v2';
 export const SAMPLE_DAY = '2026-11-15';
 export const sampleDriver = tenant => `demo-user-sample-${tenant}-driver`;
 const at = '2026-11-15T15:00:00.000Z';
@@ -113,5 +113,13 @@ export async function buildSampleDataset(customerId) {
     counts:{accounts:commercial.accounts.length,locations:commercial.locations.length,agreements:commercial.agreements.length,estimates:commercial.estimates.length,plans:commercial.plans.length,commercialJobs:commercial.jobs.length,invoices:commercial.invoices.length,payments:commercial.payments.length,outbox:commercial.outbox.length,fieldJobs:field.jobs.length,routes:field.routes.length,certificates:field.certificates.length,warehouseRecords:warehouse.records.length,warehouseOrders:warehouse.orders.length},
     references:{accountId,planId,certificateId,driverId:driver},
     scenarios:['prospect','customer','lost','archived','multi-location','signed-agreement','recurrence-skip','paid-refund-credit','unpaid-checkout','provider-retry','assigned-driver','completed-job','driver-exception','sample-certificate','delivery-draft','warehouse-receiving','retrieval-courier','export-pending']};
-  return {manifest,commercial,field,warehouse};
+  const settlements=[['ExternalID','Kind','Reference','AmountCents','Currency']];let settlementNumber=0;
+  for(const p of commercial.payments.filter(p=>p.status==='captured')){
+    settlements.push(['demo-settlement-'+(++settlementNumber),'capture',p.id,p.amountCents,'USD']);
+    for(const r of p.refunds.filter(r=>r.status==='refunded'))settlements.push(['demo-settlement-'+(++settlementNumber),'refund',r.id,r.amountCents,'USD']);
+  }
+  const matchedCsv=settlements.map(r=>r.join(',')).join('\r\n')+'\r\n',mismatched=settlements.map(r=>[...r]);mismatched[1][3]--;
+  const fixtures={settlements:{matchedCsv,mismatchedCsv:mismatched.map(r=>r.join(',')).join('\r\n')+'\r\n'},reportKinds:['inventory','warehouse','custody','invoices','payments','field','field_custody']};
+  manifest.scenarios.push('settlement-reconciliation','indexed-search','general-report-exports','document-archival');
+  return {manifest,commercial,field,warehouse,fixtures};
 }
