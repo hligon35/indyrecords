@@ -10,3 +10,5 @@ Independent synthetic demonstration for web, Windows (Tauri), and Zebra Android 
 - [Android demo](apps/mobile/README.md)
 
 Requires Node 24+ for the SQL-backed security tests. Run npm ci, npm test and npm run build:web. Historical phase documents describe earlier states; the current phases 13–15 report supersedes their implementation status.
+
+Latest continuation: [synthetic administration and pilot evidence](docs/two-phase-continuation.md).
