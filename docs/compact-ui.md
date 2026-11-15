@@ -54,6 +54,14 @@ npm run dev:android
 
 These commands generate and compile the custom native application. Expo Go cannot provide the encrypted workflow database or native DataWedge receiver. Use the Scan tab for the isolated scan simulator, Warehouse for synthetic work orders and Driver for assignments. Configure Zebra input using the [mobile setup](../apps/mobile/README.md). Emulator startup does not validate physical Zebra hardware.
 
+If Windows reports long CMake object paths or shortened Clang linker names, stop the failed build and use the optional host workaround from `apps/mobile/android`:
+
+```powershell
+.\gradlew.bat :app:assembleDebug --no-daemon --init-script ../../../scripts/windows-android-ndk.init.gradle -PirmCmakeStagingRoot=C:/irm-build/cxx
+```
+
+Use Android Studio or `adb install -r app/build/outputs/apk/debug/app-debug.apk` to install that debug build. It expects Metro running via `npm start` in `apps/mobile` (use `adb reverse tcp:8081 tcp:8081` for a USB device).
+
 ## iOS (macOS only)
 
 Install Xcode and its command-line tools, then run from the repository root:
