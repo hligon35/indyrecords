@@ -18,3 +18,5 @@ Expanded product scope: [shredding-service competitive features](docs/shredding-
 Phase A implementation: [Commercial Office workflow and limits](docs/phase-a-commercial.md).
 
 Phase B implementation: [Dispatch, driver operations, SAMPLE certificates and field reporting](docs/phase-b-field-operations.md).
+
+App branding uses `assets/irm-icon.PNG` (the filename is case-sensitive on web hosts). After changing the source image, install the Windows package dependencies and run `npm run icons` from the repository root to regenerate web, Windows and mobile icons. Rebuild the web app and native installers to distribute updated icons; existing installed native apps retain their bundled icon until updated.

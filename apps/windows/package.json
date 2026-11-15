@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "node run.mjs dev",
     "build": "node run.mjs build",
-    "icons": "tauri icon ../../assets/irm-icon.svg"
+    "icons": "node ../../scripts/generate-icons.mjs"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.0.0"

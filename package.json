@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "icons": "node scripts/generate-icons.mjs",
     "dev:api": "wrangler dev",
     "db:local": "wrangler d1 migrations apply irm-rms-demo --local",
     "db:remote": "wrangler d1 migrations apply irm-rms-demo --remote",

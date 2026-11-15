@@ -4,6 +4,7 @@
     "slug": "irm-rms-prototype",
     "scheme": "irmrmsdemo",
     "version": "0.1.0",
+    "icon": "./assets/irm-app-icon.png",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "ios": {
@@ -18,10 +19,17 @@
     },
     "android": {
       "package": "com.alphazonelabs.irmrmsdemo",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/irm-adaptive-icon.png",
+        "backgroundColor": "#00113f"
+      },
       "permissions": [],
       "blockedPermissions": [
         "android.permission.RECORD_AUDIO"
       ]
+    },
+    "web": {
+      "favicon": "../../assets/icons/32x32.png"
     },
     "plugins": [
       "expo-secure-store",
