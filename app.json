@@ -1,0 +1,15 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "41b5e365-0812-45e8-baeb-99477055850d"
+      }
+    },
+    "ios": {
+      "bundleIdentifier": "com.azlabsllcprod.irmrmsprototype",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    }
+  }
+}
