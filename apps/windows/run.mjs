@@ -7,7 +7,8 @@ if(!['dev','build'].includes(mode))throw Error('Use dev or build');
 const cargo=join(homedir(),'.cargo','bin');
 const env={...process.env,PATH:(existsSync(cargo)?cargo+delimiter:'')+process.env.PATH};
 const cli='node_modules/@tauri-apps/cli/tauri.js';
-const icons=spawnSync(process.execPath,[cli,'icon','../../assets/irm-icon.svg'],{stdio:'inherit',env});
+// Single icon source: assets/irm-icon.PNG (shared generator also refreshes web/mobile icons).
+const icons=spawnSync(process.execPath,['../../scripts/generate-icons.mjs'],{stdio:'inherit',env});
 if(icons.status!==0)process.exit(icons.status||1);
 const args=[cli,mode];
 // Embed only an explicitly approved read-only origin, never credentials.

@@ -4,6 +4,7 @@ import {createAcceptanceView} from './acceptance-view.js';
 import {createAdministrationView} from './administration-view.js';
 import {createManagementView} from './management-view.js';
 import {createWarehouseView} from './warehouse-view.js';
+import {bindDemoGate} from './demo-login.js';
 import {startLogin,finishLogin,bindDesktopLogin} from './login.js';
 import {createReadOnlyConnection} from './remote-readonly.js';
 import {seed, createState, applyScan, summary, searchRecords, reportRows} from './domain.js';
@@ -45,3 +46,5 @@ async function fetchRemote(cursor){
 finishLogin().then(async options=>{if(options){await remote.signIn(options);page='remote';remoteMessage='Signed in. Inventory access is scoped to your account.';render()}}).catch(error=>{page='remote';remoteMessage=error.message;render()});
 
 bindDesktopLogin(async options=>{await remote.signIn(options);page='remote';remoteMessage='Signed in through the system browser.';render()},error=>{page='remote';remoteMessage=error.message;render()}).catch(error=>{remoteMessage='Desktop sign-in unavailable: '+error.message});
+
+bindDemoGate();
