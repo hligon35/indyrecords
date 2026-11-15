@@ -1,0 +1,20 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {DatabaseSync} from 'node:sqlite';
+import {readFileSync} from 'node:fs';
+import {administrationRoute} from '../api/administration.js';
+import {loadPrincipal} from '../api/auth.js';
+function fixture(){const db=new DatabaseSync(':memory:');for(const name of ['0001_initial','0002_auth_audit_foundation','0003_sessions','0004_synthetic_workflows','0005_management_integration_security','0006_synthetic_administration'])db.exec(readFileSync(new URL('../migrations/'+name+'.sql',import.meta.url),'utf8'));db.exec(readFileSync(new URL('../scripts/seed-demo.sql',import.meta.url),'utf8'));db.exec("INSERT INTO app_users VALUES('admin','admin','Demo admin','admin',1,CURRENT_TIMESTAMP,0)");
+ const DB={prepare(sql){let values=[];return {bind(...p){values=p;return this},async first(){return db.prepare(sql).get(...values)},async all(){return {results:db.prepare(sql).all(...values)}},async run(){return {meta:{changes:Number(db.prepare(sql).run(...values).changes)}}}}},async batch(queries){db.exec('BEGIN');try{const results=[];for(const q of queries)results.push(await q.run());db.exec('COMMIT');return results}catch(e){db.exec('ROLLBACK');throw e}}};
+ const principal={id:'admin',active:true,role:'admin',customerIds:['c2']};const env={DB,SYNTHETIC_MANAGEMENT_ENABLED:'true'};
+ const call=(path,body,who=principal,origin='http://localhost')=>administrationRoute(new Request(origin+'/v1/administration/'+path,{method:body?'POST':'GET',...(body?{body:JSON.stringify(body)}:{})}),env,who,r=>r.json());return {db,env,call,principal}}
+test('onboarding is inactive, scoped, atomic, versioned and cannot elevate roles',async()=>{const {db,env,call}=fixture();try{
+ const input={id:'demo-user-one',role:'warehouse',customerIds:['c2']};assert.equal((await call('users',{...input,customerIds:['c3']})).status,400);assert.equal((await call('users',{...input,role:'admin'})).status,400);
+ assert.equal((await call('users',input)).status,201);assert.equal(await loadPrincipal(env.DB,'synthetic:'+input.id),null);
+ assert.equal((await call('users',input)).status,409);assert.equal(db.prepare('SELECT COUNT(*) n FROM user_customer_access').get().n,1);
+ assert.equal((await call('account-state',{id:input.id,active:true,expectedVersion:0})).status,200);assert.deepEqual((await loadPrincipal(env.DB,'synthetic:'+input.id)).customerIds,['c2']);
+ assert.equal((await call('account-state',{id:input.id,active:false,expectedVersion:0})).status,409);
+ assert.equal((await call('account-state',{id:input.id,active:false,expectedVersion:1})).status,200);assert.equal(await loadPrincipal(env.DB,'synthetic:'+input.id),null);
+ }finally{db.close()}});
+test('admin routes reject viewers, shared tokens, non-loopback and disabled writes',async()=>{const {db,call,principal,env}=fixture();try{const input={id:'demo-user-one',role:'viewer',customerIds:['c2']};for(const who of [{...principal,role:'viewer'},{...principal,id:'demo-api-user'}])assert.equal((await call('users',input,who)).status,403);assert.equal((await call('users',input,principal,'https://public.example')).status,403);env.SYNTHETIC_MANAGEMENT_ENABLED='false';assert.equal((await call('users',input)).status,403)}finally{db.close()}});
+test('acceptance observations are immutable, tenant scoped and never deployment approval',async()=>{const {db,call}=fixture();try{const observation={check:'offline',outcome:'fail',reference:'demo-evidence:queue/restart',commit:'a'.repeat(40)};assert.equal((await call('acceptance?customerId=c3',observation)).status,403);assert.equal((await call('acceptance?customerId=c2',{...observation,reference:'https://company-data.example'})).status,400);assert.equal((await call('acceptance?customerId=c2',observation)).status,201);assert.equal((await call('acceptance?customerId=c2',{...observation,outcome:'pass'})).status,201);const result=await (await call('acceptance?customerId=c2')).json();assert.equal(result.items.length,2);assert.equal(result.productionReady,false);assert.equal(result.supervisedPilotReady,false);assert.equal(db.prepare('SELECT COUNT(*) n FROM records').get().n,4)}finally{db.close()}});

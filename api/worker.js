@@ -1,3 +1,4 @@
+import {administrationRoute} from './administration.js';
 import {authRateLimit} from './security.js';
 import {managementRoute} from './management.js';
 import {loginRoute} from './login.js';
@@ -29,6 +30,7 @@ async function routes(request,env,principal,localDemo){
     await env.DB.prepare('UPDATE app_sessions SET revoked_at=? WHERE token_hash=?').bind(Date.now(),await digest(token)).run();
     return json({status:'signed_out'});
   }
+  if(path.startsWith('/v1/administration/'))return administrationRoute(request,env,principal,scanBody);
   if(path.startsWith('/v1/management/'))return managementRoute(request,env,principal,scanBody);
   if(path.startsWith('/v1/sandbox/'))return warehouseRoute(request,env,principal,scanBody);
   if(!localDemo){
