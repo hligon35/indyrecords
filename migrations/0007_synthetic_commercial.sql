@@ -1,0 +1,4 @@
+CREATE TABLE commercial_workspaces (
+ customer_id TEXT PRIMARY KEY REFERENCES customers(id), version INTEGER NOT NULL DEFAULT 0,
+ payload TEXT NOT NULL, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);

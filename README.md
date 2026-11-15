@@ -14,3 +14,5 @@ Requires Node 24+ for the SQL-backed security tests. Run npm ci, npm test and np
 Latest continuation: [synthetic administration and pilot evidence](docs/two-phase-continuation.md).
 
 Expanded product scope: [shredding-service competitive features](docs/shredding-service-scope.md).
+
+Phase A implementation: [Commercial Office workflow and limits](docs/phase-a-commercial.md).

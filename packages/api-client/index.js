@@ -21,6 +21,8 @@ export function createApiClient({baseUrl,getAccessToken,fetchImpl=fetch,readOnly
   return payload;
  }
  return {
+  getCommercialWorkspace:customerId=>request('/v1/commercial/workspace?'+new URLSearchParams({customerId})),
+  commercialCommand:input=>request('/v1/commercial/commands',{method:'POST',body:input}),
   getCustomerProfiles:()=>request('/v1/management/customers'),
   saveCustomerProfile:input=>request('/v1/management/customers',{method:'POST',body:input}),
   getManagementReport:options=>request('/v1/management/report?'+new URLSearchParams({...options,format:'json'})),

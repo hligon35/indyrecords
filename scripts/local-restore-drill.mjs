@@ -18,7 +18,7 @@ try{
  if(db.prepare('PRAGMA foreign_key_check').all().length)throw Error('Restored database failed foreign key check');
  // A backup must not revive sessions or one-time codes revoked after the snapshot.
  db.prepare('UPDATE app_sessions SET revoked_at=?').run(Date.now());db.exec('DELETE FROM login_attempts; DELETE FROM auth_rate_limits;');
- const counts={};for(const table of ['customers','records','sandbox_workspaces','customer_profiles','integration_jobs','access_audit'])counts[table]=db.prepare('SELECT COUNT(*) AS n FROM '+table).get().n;
+ const counts={};for(const table of ['customers','records','sandbox_workspaces','customer_profiles','integration_jobs','acceptance_observations','commercial_workspaces','access_audit'])counts[table]=db.prepare('SELECT COUNT(*) AS n FROM '+table).get().n;
  const report={schemaVersion:1,synthetic:true,passed:true,generatedAt:new Date().toISOString(),backupSha256:createHash('sha256').update(sql).digest('hex'),counts,integrity:'ok',foreignKeys:'ok',sessionsRevoked:true,oneTimeCodesRemoved:true,sourceDatabaseModified:false};
  await writeFile(join(out,'restore-evidence.json'),JSON.stringify(report,null,2)+'\n');console.log('PASS: local D1 backup restored into a separate database; sessions/codes invalidated.');console.log(join(out,'restore-evidence.json'));
 }finally{db.close()}

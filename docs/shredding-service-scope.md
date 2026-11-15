@@ -1,6 +1,6 @@
 # Shredding-service competitive implementation scope
 
-Requested November 14, 2026. This is additional product scope, not a claim of implemented feature parity. The existing RMS has synthetic inventory/custody, workflow, scoped administration and reporting foundations. It does not yet implement the commercial shredding lifecycle below. Existing synthetic-only, no-production-mutations and no-public-shared-token restrictions continue to apply.
+Requested November 14, 2026. This is additional product scope, not a claim of implemented feature parity. The existing RMS has synthetic inventory/custody, workflow, scoped administration and reporting foundations. Phase A now has a synthetic implementation described in phase-a-commercial.md; live provider integrations and production finance remain disabled. Phase B remains future work. Existing synthetic-only, no-production-mutations and no-public-shared-token restrictions continue to apply.
 
 ## Competitive baseline
 

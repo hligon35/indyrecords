@@ -56,6 +56,8 @@ export function createReadOnlyConnection({fetchImpl=fetch}={}) {
     },
     async getCustomerProfiles(){return read('getCustomerProfiles')},
     async getManagementReport(options){return read('getManagementReport',options)},
+    async getCommercialWorkspace(customerId){return read('getCommercialWorkspace',customerId)},
+    async commercialCommand(input){return localManagementWrite('commercialCommand',input)},
     async getSyntheticUsers(){return read('getSyntheticUsers')},
     async createSyntheticUser(input){return localManagementWrite('createSyntheticUser',input)},
     async setSyntheticUserState(input){return localManagementWrite('setSyntheticUserState',input)},
