@@ -38,6 +38,10 @@ test("commercial screen loads the complete linked feature sample into both local
  assert.match(root.textContent,/Loaded 5 customer accounts, 8 service jobs, 4 invoices, 4 driver jobs/);
  await root.querySelector("#co-fill-sample").onclick();assert.equal(JSON.parse(storage.getItem("irm-commercial-c2")).accounts.length,5);
 });
+test("commercial sample loader repairs a prior install missing warehouse data without replacing edits",async()=>{
+ const {root,storage}=ui();storage.setItem("irm-sample-loaded-irm-full-sample-v3-c2","loaded");storage.setItem("irm-commercial-c2",JSON.stringify({...JSON.parse(storage.getItem("irm-commercial-c2")),accounts:[{id:"kept",name:"Kept account"}]}));
+ await root.querySelector("#co-fill-sample").onclick();assert.equal(JSON.parse(storage.getItem("irm-commercial-c2")).accounts[0].name,"Kept account");assert.equal(JSON.parse(storage.getItem("irm-warehouse-c2")).records.length,17);assert.match(root.textContent,/existing Commercial and Dispatch data was preserved/);
+});
 test("API commercial screen clears financial state after session change and never submits with no workspace", async () => {
   const remote = { revision: 1, getCommercialWorkspace: async () => ({ ...seedCommercial("c2"), accounts: [{ id: "demo-sensitive", name: "Demo Secret", stage: "customer" }] }) };
   const { root, render } = ui(remote);

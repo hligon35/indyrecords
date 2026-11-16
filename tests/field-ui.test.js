@@ -45,6 +45,10 @@ test("dispatch screen loads linked jobs, routes, certificates and batches for co
  assert.match(root.textContent,/1 sample certificate, 1 delivery batch and 17 warehouse records/);
  assert.match(root.textContent,/SAMPLE \/ NOT PROOF OF DESTRUCTION/);assert.match(root.textContent,/simulated_sent|draft/);
 });
+test("dispatch sample loader repairs a prior install missing warehouse data without replacing edits",async()=>{
+ const {root,storage}=harness();storage.setItem("irm-sample-loaded-irm-full-sample-v3-c2","loaded");const existing=seedField("c2");existing.jobs=[{...demoJobs("c2")[0],id:"kept",name:"Kept job"}];storage.setItem("irm-field-c2",JSON.stringify(existing));
+ await root.querySelector("#fi-fill-sample").onclick();assert.equal(JSON.parse(storage.getItem("irm-field-c2")).jobs[0].name,"Kept job");assert.equal(JSON.parse(storage.getItem("irm-warehouse-c2")).records.length,17);assert.match(root.textContent,/existing Commercial and Dispatch data was preserved/);
+});
 test("verified manager can install the linked sample from dispatch and sees the persisted field workspace",async()=>{
  const calls=[],sample={...seedField("c2"),jobs:demoJobs("c2")},remote={revision:1,connected:true,user:{id:"manager",role:"manager"},installOperationsSample:async input=>calls.push(input),getFieldWorkspace:async()=>sample,getFieldDrivers:async()=>({items:[]})};
  const {root}=harness(remote);root.querySelector("#fi-mode").onchange({target:{value:"api"}});await root.querySelector("#fi-fill-sample").onclick();
