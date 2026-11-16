@@ -102,18 +102,19 @@ function createCommercialView({ remote, storage = localStorage, onDownload } = {
         state = await remote.getCommercialWorkspace(tenant);
         notice = "The complete sample workspace is installed. Dispatch jobs, certificates and warehouse records are available too.";
       } else {
-        const commercialKey = key(), fieldKey = "irm-field-" + tenant, marker = "irm-sample-loaded-" + DATASET_VERSION + "-" + tenant;
+        const commercialKey = key(), fieldKey = "irm-field-" + tenant, warehouseKey = "irm-warehouse-" + tenant, marker = "irm-sample-loaded-" + DATASET_VERSION + "-" + tenant;
         if (storage.getItem(marker)) {
           state = local();
           notice = "The complete sample workspace is already loaded.";
           return;
         }
-        const previousCommercial = JSON.parse(storage.getItem(commercialKey) || "null"), previousField = JSON.parse(storage.getItem(fieldKey) || "null");
+        const previousCommercial = JSON.parse(storage.getItem(commercialKey) || "null"), previousField = JSON.parse(storage.getItem(fieldKey) || "null"), previousWarehouse = JSON.parse(storage.getItem(warehouseKey) || "null");
         const populated = (value, collections) => value && collections.some((name) => Array.isArray(value[name]) ? value[name].length : value[name] && typeof value[name] === "object" && Object.keys(value[name]).length);
-        if (populated(previousCommercial, ["accounts", "imports", "locations", "contacts", "activities", "tasks", "agreements", "estimates", "plans", "jobs", "invoices", "payments", "outbox", "events", "receipts"]) || populated(previousField, ["jobs", "vehicles", "routes", "custody", "certificates", "delivery", "batches", "telemetry", "navigation", "exports", "receipts"])) throw Error("Existing demo work was preserved. Choose an empty workspace to load the complete sample.");
+        if (populated(previousCommercial, ["accounts", "imports", "locations", "contacts", "activities", "tasks", "agreements", "estimates", "plans", "jobs", "invoices", "payments", "outbox", "events", "receipts"]) || populated(previousField, ["jobs", "vehicles", "routes", "custody", "certificates", "delivery", "batches", "telemetry", "navigation", "exports", "receipts"]) || populated(previousWarehouse, ["records", "orders", "custody", "receipts"])) throw Error("Existing demo work was preserved. Choose an empty workspace to load the complete sample.");
         const sample = await buildSampleDataset(tenant);
         storage.setItem(commercialKey, JSON.stringify(sample.commercial));
         storage.setItem(fieldKey, JSON.stringify(sample.field));
+        storage.setItem(warehouseKey, JSON.stringify(sample.warehouse));
         storage.setItem(marker, "loaded");
         state = sample.commercial;
         notice = "Loaded " + sample.commercial.accounts.length + " customer accounts, " + sample.commercial.jobs.length + " service jobs, " + sample.commercial.invoices.length + " invoices, " + sample.field.jobs.length + " driver jobs and " + sample.field.certificates.length + " sample certificate.";

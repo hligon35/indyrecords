@@ -41,7 +41,7 @@ test("dispatch screen loads linked jobs, routes, certificates and batches for co
  const {root,storage}=harness();await root.querySelector("#fi-fill-sample").onclick();
  const field=JSON.parse(storage.getItem("irm-field-c2")),commercial=JSON.parse(storage.getItem("irm-commercial-c2"));
  assert.equal(field.jobs.length,4);assert.equal(field.vehicles.length,2);assert.equal(field.routes.length,1);assert.equal(field.certificates.length,1);assert.equal(field.batches.length,1);
- assert.equal(commercial.accounts.length,5);assert.equal(commercial.invoices.length,4);
+ assert.equal(commercial.accounts.length,5);assert.equal(commercial.invoices.length,4);assert.equal(JSON.parse(storage.getItem("irm-warehouse-c2")).records.length,17);
  assert.match(root.textContent,/1 sample certificate, 1 delivery batch and 17 warehouse records/);
  assert.match(root.textContent,/SAMPLE \/ NOT PROOF OF DESTRUCTION/);assert.match(root.textContent,/simulated_sent|draft/);
 });

@@ -34,6 +34,7 @@ test("commercial screen loads the complete linked feature sample into both local
  const commercial=JSON.parse(storage.getItem("irm-commercial-c2")),field=JSON.parse(storage.getItem("irm-field-c2"));
  assert.equal(commercial.accounts.length,5);assert.equal(commercial.jobs.length,8);assert.equal(commercial.invoices.length,4);
  assert.equal(field.jobs.length,4);assert.equal(field.certificates.length,1);assert.equal(field.batches.length,1);
+ assert.equal(JSON.parse(storage.getItem("irm-warehouse-c2")).records.length,17);
  assert.match(root.textContent,/Loaded 5 customer accounts, 8 service jobs, 4 invoices, 4 driver jobs/);
  await root.querySelector("#co-fill-sample").onclick();assert.equal(JSON.parse(storage.getItem("irm-commercial-c2")).accounts.length,5);
 });
