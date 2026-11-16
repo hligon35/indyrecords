@@ -45,6 +45,6 @@ Acceptance: a synthetic dispatch-to-driver-to-custody-to-invoice/certificate sce
 - Define audit retention, backups, data import/export, monitoring, error ownership and rollback before operational rollout.
 - Approve actual DocuSign, payment, QBO, mapping and fleet providers/accounts; obtain supported contracts and credentials outside source control. Keep all adapters synthetic until then.
 - Independently review certification support, actual equipment, iOS/Android/Windows behavior, commercial-navigation safety, signing and pilot acceptance. NAID AAA support is a workflow requirement, not a certification awarded by this repository.
-- Existing large-export, multilingual PDF, security remediation and deployment gaps are retained rather than superseded by this roadmap.
+- Existing large-export, advanced PDF typography, security remediation and deployment gaps are retained rather than superseded by this roadmap. Management PDFs embed Noto Sans for Latin, Greek and Cyrillic with full-value wrapping; complex shaping, right-to-left and CJK output remain open.
 
 Implementation order within the two phases: CRM/location model -> agreements/pricing -> estimates/recurrence -> invoice ledger -> synthetic integration outboxes; then dispatch -> driver offline execution -> custody/certificates -> delivery -> provider telemetry/navigation -> end-to-end acceptance. Each increment needs working UI/API/persistence, scoped tests and an honest blocker record before it is reported complete.

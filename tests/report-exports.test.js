@@ -15,11 +15,11 @@ test('normalized inventory exports snapshot more than 1,000 rows and resume afte
   await assert.rejects(exportChunk(f.env,f.p,'c3',q.export.id),/not found/);
  }finally{f.db.close()}
 });
-test('all finance, field and custody exports use the scoped source and retain full nested values',async()=>{
+test('all warehouse, commercial, finance and field exports use scoped snapshots and retain nested values',async()=>{
  const f=await operationsFixture();try{
   for(const kind of Object.keys(EXPORTS))await createReportExport(f.env,f.p,'c2',{kind,requestKey:'demo-'+kind.replaceAll('_','-')},1000);
-  for(let i=0;i<3;i++)await runReportExports(f.env,'c2',{limit:10,now:1000+i});
-  const jobs=f.db.prepare('SELECT * FROM report_exports').all();assert.equal(jobs.length,7);assert.ok(jobs.every(j=>j.status==='complete'));
+  for(let i=0;i<10;i++)await runReportExports(f.env,'c2',{limit:10,now:1000+i});
+  const jobs=f.db.prepare('SELECT * FROM report_exports').all();assert.equal(jobs.length,Object.keys(EXPORTS).length);assert.ok(jobs.every(j=>j.status==='complete'));
   const invoice=jobs.find(j=>j.kind==='invoices'),part=await exportChunk(f.env,f.p,'c2',invoice.id);
   assert.match(part.content,/Café/);assert.match(part.content,/refunded|credits/);
  }finally{f.db.close()}

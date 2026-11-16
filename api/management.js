@@ -49,7 +49,9 @@ export async function managementRoute(request,env,principal,readBody){
   let report;try{const filters=reportFilters(Object.fromEntries(url.searchParams));report=buildReport(await reportData(env,principal,source,customerId,filters),{type,filters,customerIds:[customerId],source})}catch(error){return json({error:error.message},error.status||400)}
   if(format==='json')return json(report);
   const headers={'content-type':format==='csv'?'text/csv; charset=utf-8':'application/pdf','cache-control':'no-store','content-disposition':'attachment; filename="irm-rms-'+type+'.'+format+'"','x-content-type-options':'nosniff'};
-  return new Response(format==='csv'?reportCsv(report):await reportPdf(report),{headers});
+  if(format==='csv')return new Response(reportCsv(report),{headers});
+  let pdf;try{pdf=await reportPdf(report)}catch(error){return json({error:error.message},422)}
+  return new Response(pdf,{headers});
  }
  if(path==='/v1/management/integrations'&&request.method==='GET'){
   const customerId=url.searchParams.get('customerId');if(!local(request)||!can(principal,'integrations:read',{customerId}))return json({error:'Forbidden'},403);

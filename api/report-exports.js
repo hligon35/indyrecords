@@ -6,11 +6,34 @@ const fail=(m,status=409)=>{throw Object.assign(Error(m),{status})};
 export const EXPORTS={
  inventory:{columns:['id','barcode','kind','status','location'],flag:null,sql:"SELECT json_object('id',r.id,'barcode',r.barcode,'kind',r.kind,'status',r.status,'location',l.label) AS payload FROM records r LEFT JOIN locations l ON l.id=r.location_id WHERE r.customer_id=? ORDER BY r.id"},
  warehouse:{columns:['barcode','kind','status','location','custodian'],flag:'SYNTHETIC_WORKFLOWS_ENABLED',table:'sandbox_workspaces',path:'$.records'},
+ warehouse_orders:{columns:['id','customerId','operation','direction','status','version','items','courier','recipient'],flag:'SYNTHETIC_WORKFLOWS_ENABLED',table:'sandbox_workspaces',path:'$.orders'},
+ warehouse_receipts:{columns:['clientEventId','fingerprint','actor'],flag:'SYNTHETIC_WORKFLOWS_ENABLED',table:'sandbox_workspaces',path:'$.receipts'},
  custody:{columns:['id','barcode','orderId','action','actor','occurredAt','from','to','previousHash','hash'],flag:'SYNTHETIC_WORKFLOWS_ENABLED',table:'sandbox_workspaces',path:'$.custody'},
+ commercial_accounts:{columns:['id','name','stage','archived','lossReason','billingLocationId','billingContactId'],flag:'SYNTHETIC_COMMERCIAL_ENABLED',table:'commercial_workspaces',path:'$.accounts'},
+ commercial_locations:{columns:['id','accountId','name','address','timezone','windowStart','windowEnd','archived'],flag:'SYNTHETIC_COMMERCIAL_ENABLED',table:'commercial_workspaces',path:'$.locations'},
+ commercial_contacts:{columns:['id','accountId','name','alias'],flag:'SYNTHETIC_COMMERCIAL_ENABLED',table:'commercial_workspaces',path:'$.contacts'},
+ commercial_interactions:{columns:['id','accountId','note','actor','at'],flag:'SYNTHETIC_COMMERCIAL_ENABLED',table:'commercial_workspaces',path:'$.activities'},
+ commercial_followups:{columns:['id','accountId','title','assignee','due','status'],flag:'SYNTHETIC_COMMERCIAL_ENABLED',table:'commercial_workspaces',path:'$.tasks'},
+ commercial_agreements:{columns:['id','accountId','locationId','locationIds','start','end','renewal','terms','price','revisions','revision','status','externalId'],flag:'SYNTHETIC_COMMERCIAL_ENABLED',table:'commercial_workspaces',path:'$.agreements'},
+ commercial_estimates:{columns:['id','accountId','locationId','agreementId','agreementRevision','service','mode','unit','revisions','revision','status','price'],flag:'SYNTHETIC_COMMERCIAL_ENABLED',table:'commercial_workspaces',path:'$.estimates'},
+ commercial_recurring_plans:{columns:['id','estimateId','start','end','intervalDays','status','exceptions'],flag:'SYNTHETIC_COMMERCIAL_ENABLED',table:'commercial_workspaces',path:'$.plans'},
+ commercial_jobs:{columns:['id','occurrence','accountId','locationId','date','status','invoiceId','estimateId','price','completedAt'],flag:'SYNTHETIC_COMMERCIAL_ENABLED',table:'commercial_workspaces',path:'$.jobs'},
  invoices:{columns:['id','accountId','status','from','to','due','totalCents','billTo','lines','credits'],flag:'SYNTHETIC_COMMERCIAL_ENABLED',table:'commercial_workspaces',path:'$.invoices'},
  payments:{columns:['id','invoiceId','amountCents','status','refundedCents','refunds'],flag:'SYNTHETIC_COMMERCIAL_ENABLED',table:'commercial_workspaces',path:'$.payments'},
+ commercial_outbox:{columns:['id','key','provider','kind','entityId','status','attempts','nextAttemptAt','externalId','error','payload','reconciliation','reconciliations'],flag:'SYNTHETIC_COMMERCIAL_ENABLED',table:'commercial_workspaces',path:'$.outbox'},
+ commercial_events:{columns:['id','action','actor','at'],flag:'SYNTHETIC_COMMERCIAL_ENABLED',table:'commercial_workspaces',path:'$.events'},
+ commercial_receipts:{columns:['clientEventId','fingerprint','actor'],flag:'SYNTHETIC_COMMERCIAL_ENABLED',table:'commercial_workspaces',path:'$.receipts'},
  field:{columns:['id','accountId','commercialJobId','name','address','date','status','driverId','production','bins'],flag:'SYNTHETIC_FIELD_ENABLED',table:'field_workspaces',path:'$.jobs'},
- field_custody:{columns:['id','jobId','action','actor','at','data','previousHash','hash'],flag:'SYNTHETIC_FIELD_ENABLED',table:'field_workspaces',path:'$.custody'}
+ field_vehicles:{columns:['id','name','capacity','heightCm','weightKg','widthCm','lengthCm','available'],flag:'SYNTHETIC_FIELD_ENABLED',table:'field_workspaces',path:'$.vehicles'},
+ field_routes:{columns:['id','driverId','vehicleId','date','jobIds','matrix','settings','plan'],flag:'SYNTHETIC_FIELD_ENABLED',table:'field_workspaces',path:'$.routes'},
+ field_custody:{columns:['id','jobId','action','actor','at','data','previousHash','hash'],flag:'SYNTHETIC_FIELD_ENABLED',table:'field_workspaces',path:'$.custody'},
+ field_certificates:{columns:['id','jobId','accountId','revision','title','issuedAt','issuer','custodyHead','bins','production','voided'],flag:'SYNTHETIC_FIELD_ENABLED',table:'field_workspaces',path:'$.certificates'},
+ field_delivery_settings:{columns:['accountId','recipient','timezone','consent'],flag:'SYNTHETIC_FIELD_ENABLED',table:'field_workspaces',path:'$.delivery'},
+ field_certificate_batches:{columns:['id','key','day','accountId','recipient','certificateIds','status','attempts','nextAttemptAt','history'],flag:'SYNTHETIC_FIELD_ENABLED',table:'field_workspaces',path:'$.batches'},
+ field_telemetry:{columns:['vehicleId','synthetic','timestamp','latitude','longitude','odometer','diagnostic','camera','eld'],flag:'SYNTHETIC_FIELD_ENABLED',table:'field_workspaces',path:'$.telemetry'},
+ field_navigation:{columns:['id','routeId','actor','at','status','uri','restrictionsChecked','notice'],flag:'SYNTHETIC_FIELD_ENABLED',table:'field_workspaces',path:'$.navigation'},
+ field_export_jobs:{columns:['id','status','offset','rows','source','asOf'],flag:'SYNTHETIC_FIELD_ENABLED',table:'field_workspaces',path:'$.exports'},
+ field_receipts:{columns:['clientEventId','fingerprint','actor'],flag:'SYNTHETIC_FIELD_ENABLED',table:'field_workspaces',path:'$.receipts'}
 };
 const audit=(DB,actor,action,id)=>DB.prepare('INSERT INTO access_audit(id,actor_id,action,resource_type,resource_id,decision) VALUES(?,?,?,?,?,?)').bind(crypto.randomUUID(),actor,action,'report_export',id,'allow');
 export async function createReportExport(env,p,customerId,x,now=Date.now()){

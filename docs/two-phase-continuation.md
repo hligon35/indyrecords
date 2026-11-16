@@ -10,7 +10,7 @@ Added Pilot Evidence to web/Windows, backed by append-only D1 observations recor
 
 ## Boundaries and remaining work
 
-This continuation does not complete every operational gap. Real provider onboarding, physical Zebra/Windows acceptance, vendor-supported real adapters, enterprise signing, production deployment, audit archival/retention and independent security review remain external gates. Large background exports and full multilingual PDF rendering remain software backlog items. Existing 1,000-row synchronous reporting limits remain enforced. Destruction stays blocked. No old package or readiness report certifies these new commits; rebuild installers and collect new acceptance evidence before use. Neither recording observations nor activating a fictional user authorizes production.
+This continuation does not complete every operational gap. Real provider onboarding, physical Zebra/Windows acceptance, vendor-supported real adapters, enterprise signing, production deployment, audit archival/retention and independent security review remain external gates. General management reports remain synchronous and capped at 1,000 rows; the separate operations export service handles larger background snapshots. Management PDFs now embed Noto Sans for complete Latin, Greek and Cyrillic values; complex-script shaping, right-to-left layout and CJK remain open. Destruction stays blocked. No old package or readiness report certifies new commits; rebuild installers and collect new acceptance evidence before use. Neither recording observations nor activating a fictional user authorizes production.
 
 ## Verification
 
