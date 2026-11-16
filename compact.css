@@ -18,3 +18,49 @@ body{overflow-x:hidden}button,input,select,textarea{font:inherit}button{touch-ac
 @media(pointer:coarse),(max-width:600px){#nav-toggle{min-height:44px}.brand{min-height:44px}#view label.compact-checkbox{min-width:44px;min-height:44px}.data-details summary{min-height:44px;display:flex;align-items:center}}
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
 @media print{.sidebar,.top-actions,#view button,footer{display:none!important}.shell{display:block}.main{padding:0}.table-wrap{max-height:none;overflow:visible}.card{break-inside:avoid}.data-details{border:0}}
+
+/* Responsive refinements for narrow tablets, small phones and wide workspaces. */
+html{min-width:320px;scroll-padding-block:12px}
+body{min-width:320px;min-height:100svh;min-height:100dvh}
+.shell{min-height:100svh;min-height:100dvh}
+.main{min-width:0}
+#view{min-width:0}
+#title,.card,.section,.item{overflow-wrap:anywhere}
+.table-wrap{-webkit-overflow-scrolling:touch;overscroll-behavior-inline:contain;scrollbar-width:thin}
+.table-wrap:focus-visible{outline:3px solid #198db9;outline-offset:2px}
+@media(min-width:1440px){.main{padding-inline:clamp(32px,3vw,64px)}#view{max-width:1640px}}
+@media(min-width:801px) and (max-width:1024px){.sidebar{width:196px;padding-inline:9px}.main{padding:16px}.top{align-items:flex-start}.top-actions{justify-content:flex-end}.card{padding:16px}}
+@media(max-width:800px){
+  .sidebar{position:relative;z-index:5}
+  .sidebar nav{grid-template-columns:minmax(0,1fr);max-height:min(60dvh,520px);padding:4px 1px 8px}
+  .nav-group{grid-template-columns:repeat(2,minmax(0,1fr));align-items:stretch}
+  .nav-heading{grid-column:1/-1}
+  .nav-btn{min-width:0;min-height:44px}
+  .main{width:100%;padding-top:12px}
+  .top{align-items:flex-start}
+  #title{max-width:100%;overflow-wrap:anywhere}
+}
+@media(max-width:600px){
+  .main{padding-inline:max(12px,env(safe-area-inset-left)) max(12px,env(safe-area-inset-right))}
+  .top{gap:6px}
+  .top-actions{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;justify-content:stretch;gap:6px;width:100%}
+  .density-control{min-width:0;justify-content:space-between}
+  .density-control select{max-width:132px}
+  .pill{max-width:48vw;white-space:normal;text-align:center;line-height:1.35}
+  .grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .metric strong{font-size:clamp(20px,7vw,24px)}
+  .card{padding:12px}
+  .actions{align-items:stretch}
+  .actions>button{flex:1 1 140px}
+  footer{padding-bottom:env(safe-area-inset-bottom)}
+}
+@media(max-width:360px){
+  .brand small{max-width:180px;overflow-wrap:anywhere}
+  .grid{grid-template-columns:minmax(0,1fr)}
+  .top-actions{grid-template-columns:minmax(0,1fr)}
+  .pill{max-width:none;justify-self:start}
+  .density-control{justify-content:flex-start}
+}
+@media(forced-colors:active){
+  .nav-btn[aria-current="page"],#view button:focus-visible,.table-wrap:focus-visible{outline:2px solid CanvasText}
+}
