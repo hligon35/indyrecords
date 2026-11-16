@@ -1,4 +1,5 @@
 import { seedCommercial, applyCommercial, invoiceBalance } from "../packages/commercial/workflows.js";
+import { buildSampleDataset, DATASET_VERSION } from "../packages/operations/sample.js";
 import { ACTIONS } from "../packages/commercial/actions.js";
 import { csvCell } from "../packages/reports/report.js";
 const esc = (x) => String(x ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -43,7 +44,8 @@ function createCommercialView({ remote, storage = localStorage, onDownload } = {
     const spec = ACTIONS[section].find((a) => a[0] === action) || ACTIONS[section][0];
     action = spec[0];
     const groups = { accounts: [["imports", ["id", "contract", "accepted", "matched", "conflicts", "rejected"]], ["accounts", ["id", "name", "stage", "archived", "billingLocationId", "billingContactId", "lossReason"]], ["locations", ["id", "accountId", "name", "address", "timezone", "windowStart", "windowEnd"]], ["contacts", ["accountId", "name", "alias", "archived"]], ["activities", ["accountId", "note", "actor", "at"]], ["tasks", ["id", "title", "assignee", "due", "status"]]], sales: [["agreements", ["id", "accountId", "locationIds", "revision", "status", "start", "end", "renewal", "terms", "total", "revisions"]], ["estimates", ["id", "accountId", "locationId", "service", "mode", "unit", "revision", "status", "total", "revisions"]]], schedule: [["plans", ["id", "estimateId", "start", "end", "intervalDays", "exceptions"]], ["jobs", ["id", "accountId", "locationId", "date", "status", "invoiceId", "total"]]], billing: [["invoices", ["id", "accountId", "from", "to", "due", "status", "total", "balance", "overdueDays", "billTo", "lines", "credits"]], ["payments", ["id", "invoiceId", "amountCents", "refundedCents", "status"]]], integrations: [["outbox", ["id", "provider", "kind", "entityId", "status", "attempts", "nextAttemptAt", "error", "externalId", "reconciliation"]], ["events", ["action", "actor", "at"]]] };
-    return '<div class="card stack"><h2>Commercial office</h2><p>Use sample customer information. External signatures, charges, refunds and accounting are not connected. Provider statuses are examples only.</p><div class="actions"><label>Workspace<select id="co-tenant">' + ["c1", "c2", "c3", "c4"].map((x) => "<option " + (x === tenant ? "selected" : "") + ">" + x + "</option>").join("") + '</select></label><label>Connection<select id="co-mode"><option value="local" ' + (mode === "local" ? "selected" : "") + '>Local demonstration</option><option value="api" ' + (mode === "api" ? "selected" : "") + '>Verified local API</option></select></label><button id="co-load">Reload workspace</button><button id="co-export">Export current section CSV</button></div><div class="actions">' + Object.keys(ACTIONS).map((k) => '<button data-co-section="' + k + '" class="' + (k === section ? "primary" : "secondary") + '">' + esc(k) + "</button>").join("") + '</div><p role="status">' + esc(notice) + '</p><label>Action<select class="field" id="co-action">' + ACTIONS[section].map((a) => '<option value="' + a[0] + '" ' + (a[0] === action ? "selected" : "") + ">" + a[1] + "</option>").join("") + "</select></label>" + spec[2].map(field).join("") + '<button id="co-save" class="primary" ' + (!state || busy ? "disabled" : "") + ">" + esc(spec[1]) + '</button><p class="muted">Services use location-local dates and time windows, including across daylight-saving changes. Containers/fixed units are whole. Uncontracted weight/hour estimates can use measured units with up to three decimals. Dollar inputs accept two decimals; percentages accept two decimals.</p>' + groups[section].map(([name, cols]) => table(name, cols)).join("") + "</div>";
+    const canInstall = mode === "local" || remote.connected && ["manager", "admin"].includes(remote.user?.role);
+    return '<div class="card stack"><h2>Commercial office</h2><p>Use sample customer information. External signatures, charges, refunds and accounting are not connected. Provider statuses are examples only.</p><div class="actions"><label>Workspace<select id="co-tenant">' + ["c1", "c2", "c3", "c4"].map((x) => "<option " + (x === tenant ? "selected" : "") + ">" + x + "</option>").join("") + '</select></label><label>Connection<select id="co-mode"><option value="local" ' + (mode === "local" ? "selected" : "") + '>Local demonstration</option><option value="api" ' + (mode === "api" ? "selected" : "") + '>Verified local API</option></select></label><button id="co-load">Reload workspace</button><button id="co-fill-sample" ' + (!canInstall || busy ? "disabled" : "") + '>Load complete sample data</button><button id="co-export">Export current section CSV</button></div><div class="actions">' + Object.keys(ACTIONS).map((k) => '<button data-co-section="' + k + '" class="' + (k === section ? "primary" : "secondary") + '">' + esc(k) + "</button>").join("") + '</div><p role="status">' + esc(notice) + '</p><label>Action<select class="field" id="co-action">' + ACTIONS[section].map((a) => '<option value="' + a[0] + '" ' + (a[0] === action ? "selected" : "") + ">" + a[1] + "</option>").join("") + "</select></label>" + spec[2].map(field).join("") + '<button id="co-save" class="primary" ' + (!state || busy ? "disabled" : "") + ">" + esc(spec[1]) + '</button><p class="muted">Services use location-local dates and time windows, including across daylight-saving changes. Containers/fixed units are whole. Uncontracted weight/hour estimates can use measured units with up to three decimals. Dollar inputs accept two decimals; percentages accept two decimals.</p>' + groups[section].map(([name, cols]) => table(name, cols)).join("") + "</div>";
   }
   async function run(render, work) {
     if (busy) return;
@@ -92,6 +94,31 @@ function createCommercialView({ remote, storage = localStorage, onDownload } = {
       state = mode === "local" ? local() : await remote.getCommercialWorkspace(tenant);
       pending = null;
       notice = "Workspace loaded. Review recent activity before repeating an uncertain request.";
+    });
+    root.querySelector("#co-fill-sample").onclick = () => run(render, async () => {
+      if (mode === "api") {
+        if (!["manager", "admin"].includes(remote.user?.role) || !remote.connected) throw Error("A verified local manager/admin account is required to install sample data.");
+        await remote.installOperationsSample({ customerId: tenant, datasetVersion: DATASET_VERSION });
+        state = await remote.getCommercialWorkspace(tenant);
+        notice = "The complete sample workspace is installed. Dispatch jobs, certificates and warehouse records are available too.";
+      } else {
+        const commercialKey = key(), fieldKey = "irm-field-" + tenant, marker = "irm-sample-loaded-" + DATASET_VERSION + "-" + tenant;
+        if (storage.getItem(marker)) {
+          state = local();
+          notice = "The complete sample workspace is already loaded.";
+          return;
+        }
+        const previousCommercial = JSON.parse(storage.getItem(commercialKey) || "null"), previousField = JSON.parse(storage.getItem(fieldKey) || "null");
+        const populated = (value, collections) => value && collections.some((name) => Array.isArray(value[name]) ? value[name].length : value[name] && typeof value[name] === "object" && Object.keys(value[name]).length);
+        if (populated(previousCommercial, ["accounts", "imports", "locations", "contacts", "activities", "tasks", "agreements", "estimates", "plans", "jobs", "invoices", "payments", "outbox", "events", "receipts"]) || populated(previousField, ["jobs", "vehicles", "routes", "custody", "certificates", "delivery", "batches", "telemetry", "navigation", "exports", "receipts"])) throw Error("Existing demo work was preserved. Choose an empty workspace to load the complete sample.");
+        const sample = await buildSampleDataset(tenant);
+        storage.setItem(commercialKey, JSON.stringify(sample.commercial));
+        storage.setItem(fieldKey, JSON.stringify(sample.field));
+        storage.setItem(marker, "loaded");
+        state = sample.commercial;
+        notice = "Loaded " + sample.commercial.accounts.length + " customer accounts, " + sample.commercial.jobs.length + " service jobs, " + sample.commercial.invoices.length + " invoices, " + sample.field.jobs.length + " driver jobs and " + sample.field.certificates.length + " sample certificate.";
+      }
+      pending = null;
     });
     root.querySelector("#co-save").onclick = () => run(render, async () => {
       const input = {};

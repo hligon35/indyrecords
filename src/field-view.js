@@ -1,4 +1,5 @@
 import { seedField, applyField, DRIVER_ACTIONS } from "../packages/field/workflows.js";
+import { buildSampleDataset, DATASET_VERSION } from "../packages/operations/sample.js";
 import { FIELD_ACTIONS } from "../packages/field/actions.js";
 import { fieldDashboard, exportCsv, unicodeReport, officeDashboard } from "../packages/field/reports.js";
 const esc = (x) => String(x ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -79,6 +80,11 @@ function createFieldView({ remote, storage = localStorage, onDownload } = {}) {
     }
   }
   function bind(root, render) {
+    const sampleButton = root.ownerDocument.createElement("button");
+    sampleButton.id = "fi-fill-sample";
+    sampleButton.textContent = "Load complete sample data";
+    sampleButton.disabled = busy || mode === "api" && (!remote.connected || !["manager", "admin"].includes(remote.user?.role));
+    root.querySelector("#fi-load").after(sampleButton);
     for (const [id, update] of [["tenant", (v) => {
       tenant = v;
       drivers = mode === "local" ? [{ id: "local-demo-driver", name: "Demo driver" }] : [];
@@ -113,6 +119,33 @@ function createFieldView({ remote, storage = localStorage, onDownload } = {}) {
       }
       pending = null;
       notice = "Loaded; review before repeating uncertain requests.";
+    });
+    sampleButton.onclick = () => run(render, async () => {
+      if (mode === "api") {
+        if (!["manager", "admin"].includes(remote.user?.role) || !remote.connected) throw Error("A verified local manager/admin account is required to install sample data.");
+        await remote.installOperationsSample({ customerId: tenant, datasetVersion: DATASET_VERSION });
+        state = await remote.getFieldWorkspace(tenant);
+        if (remote.user?.role !== "warehouse") drivers = (await remote.getFieldDrivers(tenant)).items;
+        notice = "The complete sample workspace is installed. Reload Commercial Office in this workspace to see customer and billing records.";
+      } else {
+        const fieldKey = key(), commercialKey = "irm-commercial-" + tenant, marker = "irm-sample-loaded-" + DATASET_VERSION + "-" + tenant;
+        if (storage.getItem(marker)) {
+          state = local();
+          notice = "The complete sample workspace is already loaded.";
+          return;
+        }
+        const previousCommercial = JSON.parse(storage.getItem(commercialKey) || "null"), previousField = JSON.parse(storage.getItem(fieldKey) || "null");
+        const populated = (value, collections) => value && collections.some((name) => Array.isArray(value[name]) ? value[name].length : value[name] && typeof value[name] === "object" && Object.keys(value[name]).length);
+        if (populated(previousCommercial, ["accounts", "imports", "locations", "contacts", "activities", "tasks", "agreements", "estimates", "plans", "jobs", "invoices", "payments", "outbox", "events", "receipts"]) || populated(previousField, ["jobs", "vehicles", "routes", "custody", "certificates", "delivery", "batches", "telemetry", "navigation", "exports", "receipts"])) throw Error("Existing demo work was preserved. Choose an empty workspace to load the complete sample.");
+        const sample = await buildSampleDataset(tenant);
+        storage.setItem(commercialKey, JSON.stringify(sample.commercial));
+        storage.setItem(fieldKey, JSON.stringify(sample.field));
+        storage.setItem(marker, "loaded");
+        state = sample.field;
+        office = officeDashboard(sample.commercial);
+        notice = "Loaded " + sample.field.jobs.length + " driver jobs, " + sample.field.vehicles.length + " vehicles, " + sample.field.routes.length + " route, " + sample.field.certificates.length + " sample certificate, " + sample.field.batches.length + " delivery batch and " + sample.warehouse.records.length + " warehouse records.";
+      }
+      pending = null;
     });
     root.querySelector("#fi-report").onclick = () => {
       if (state) download(unicodeReport(state), "SAMPLE-field-report.html", "text/html;charset=utf-8");

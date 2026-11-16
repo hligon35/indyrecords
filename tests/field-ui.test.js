@@ -37,6 +37,19 @@ test("dispatch screen persists route and driver execution and escapes printable 
   root.querySelector("#fi-tenant").onchange({ target: { value: "c3" } });
   assert.doesNotMatch(root.textContent, /日本語/);
 });
+test("dispatch screen loads linked jobs, routes, certificates and batches for complete local testing",async()=>{
+ const {root,storage}=harness();await root.querySelector("#fi-fill-sample").onclick();
+ const field=JSON.parse(storage.getItem("irm-field-c2")),commercial=JSON.parse(storage.getItem("irm-commercial-c2"));
+ assert.equal(field.jobs.length,4);assert.equal(field.vehicles.length,2);assert.equal(field.routes.length,1);assert.equal(field.certificates.length,1);assert.equal(field.batches.length,1);
+ assert.equal(commercial.accounts.length,5);assert.equal(commercial.invoices.length,4);
+ assert.match(root.textContent,/1 sample certificate, 1 delivery batch and 17 warehouse records/);
+ assert.match(root.textContent,/SAMPLE \/ NOT PROOF OF DESTRUCTION/);assert.match(root.textContent,/simulated_sent|draft/);
+});
+test("verified manager can install the linked sample from dispatch and sees the persisted field workspace",async()=>{
+ const calls=[],sample={...seedField("c2"),jobs:demoJobs("c2")},remote={revision:1,connected:true,user:{id:"manager",role:"manager"},installOperationsSample:async input=>calls.push(input),getFieldWorkspace:async()=>sample,getFieldDrivers:async()=>({items:[]})};
+ const {root}=harness(remote);root.querySelector("#fi-mode").onchange({target:{value:"api"}});await root.querySelector("#fi-fill-sample").onclick();
+ assert.equal(calls.length,1);assert.deepEqual(calls[0],{customerId:"c2",datasetVersion:"irm-full-sample-v3"});assert.match(root.textContent,/Demo stop/);
+});
 test("driver scope and session change clear cached field details and hide manager actions", async () => {
   const s = seedField("c2");
   s.jobs = demoJobs("c2");
