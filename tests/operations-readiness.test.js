@@ -6,12 +6,12 @@ import {refreshAlerts,acknowledgeAlert,maintainOperations} from '../api/operatio
 test('settlement reconciliation reports matched/mismatched/missing entries without changing money and retains review history',async()=>{
  const f=await operationsFixture();try{
   const before=f.db.prepare('SELECT payload FROM commercial_workspaces').get().payload,s=JSON.parse(before),p=s.payments.find(p=>p.status==='captured');
-  const csv='ExternalID,Kind,Reference,AmountCents,Currency\n'+`demo-settlement-1,capture,${p.id},5000,USD\n`;
+  const csv='ExternalID,Kind,Reference,AmountCents,Currency\n'+`demo-settlement-1,capture,${p.id},${p.amountCents},USD\n`;
   const q=await reconcileFinance(f.env.DB,f.p,'c2',{csv},1000);assert.equal(q.run.report.matched,1);assert.equal(q.run.report.exceptions,1);assert.equal((await reconcileFinance(f.env.DB,f.p,'c2',{csv},1000)).status,'already_accepted');
   await reviewReconciliation(f.env.DB,f.p,'c2',{reconciliationId:q.run.id,expectedVersion:0,reason:'Demo missing refund reviewed'},2000);
   assert.equal(f.db.prepare('SELECT payload FROM commercial_workspaces').get().payload,before);
-  await assert.rejects(reconcileFinance(f.env.DB,f.p,'c2',{csv:csv+`demo-settlement-2,capture,${p.id},5000,USD\n`}),/Duplicate/);
-  const mismatch=await reconcileFinance(f.env.DB,f.p,'c2',{csv:csv.replace(',5000,',',4999,')});assert.equal(mismatch.run.report.results[0].status,'mismatch');
+  await assert.rejects(reconcileFinance(f.env.DB,f.p,'c2',{csv:csv+`demo-settlement-2,capture,${p.id},${p.amountCents},USD\n`}),/Duplicate/);
+  const mismatch=await reconcileFinance(f.env.DB,f.p,'c2',{csv:csv.replace(`,${p.amountCents},`,`,${p.amountCents-1},`)});assert.equal(mismatch.run.report.results[0].status,'mismatch');
  }finally{f.db.close()}
 });
 test('document archives remain unchanged after source edits, reject SQL mutation and replay safely',async()=>{

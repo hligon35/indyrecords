@@ -9,7 +9,7 @@ test('basic Operations UI previews and downloads a complete sample without requi
  function render(){root.innerHTML=view.html();view.bind(root,render)}render();
  assert.equal(root.querySelector('#op-install').disabled,true);
  await root.querySelector('#op-preview').onclick();assert.match(root.textContent,/warehouseRecords/);
- await root.querySelector('#op-download').onclick();assert.equal(downloads[0].data.manifest.counts.accounts,4);
+ await root.querySelector('#op-download').onclick();assert.equal(downloads[0].data.manifest.counts.accounts,5);
  assert.equal(downloads[0].data.field.certificates[0].title,'SAMPLE / NOT PROOF OF DESTRUCTION');
 });
 test('Operations UI queues sources from verified workspaces, downloads backend documents and clears on account changes',async()=>{

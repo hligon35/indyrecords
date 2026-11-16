@@ -1,0 +1,3 @@
+ExternalID,Kind,Reference,AmountCents,Currency
+demo-settlement-1,capture,demo-c4-request-payment-66,7200,USD
+demo-settlement-2,refund,demo-c4-refund-payment-68,500,USD

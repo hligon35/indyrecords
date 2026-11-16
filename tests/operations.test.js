@@ -9,6 +9,7 @@ import {enqueueTask,runTasks,controlTask} from '../api/operations-tasks.js';
 import {digest} from '../api/auth.js';
 import {handler} from '../api/worker.js';
 import {scheduledOperations} from '../api/operations-scheduler.js';
+import {EXPORTS} from '../api/report-exports.js';
 const now=Date.parse('2026-11-15T16:00:00Z');
 async function fixture(){
  const db=new DatabaseSync(':memory:');
@@ -27,13 +28,22 @@ test('complete sample is deterministic across four isolated tenants with valid c
  for(const tenant of ['c1','c2','c3','c4']){
   const sample=await buildSampleDataset(tenant);
   assert.deepEqual(sample,await buildSampleDataset(tenant));
+  assert.deepEqual(JSON.parse(readFileSync(new URL(`../fixtures/sample-data/${tenant}.json`,import.meta.url),'utf8')),sample);
   assert.ok(await verifyCustody(sample.warehouse.custody));assert.ok(await verifyFieldCustody(sample.field.custody));
-  assert.equal(sample.commercial.accounts.length,4);assert.equal(sample.commercial.invoices.length,2);
+  assert.equal(sample.commercial.accounts.length,5);assert.equal(sample.commercial.locations.length,3);assert.equal(sample.commercial.agreements.length,3);assert.equal(sample.commercial.invoices.length,4);
+  assert.ok(sample.commercial.agreements.some(a=>a.status==='declined'));assert.ok(sample.commercial.agreements.some(a=>a.status==='terminated'));
+  assert.ok(sample.commercial.estimates.some(e=>e.status==='draft'&&e.revisions.length));assert.ok(sample.commercial.plans.some(p=>p.status==='cancelled'));
+  assert.ok(sample.commercial.jobs.some(j=>j.status==='cancelled'));assert.ok(sample.commercial.invoices.some(i=>i.status==='draft'));assert.ok(sample.commercial.invoices.some(i=>i.status==='cancelled'));
+  assert.ok(sample.commercial.payments.some(p=>p.status==='cancelled'));assert.ok(sample.commercial.outbox.some(o=>o.reviews?.length));
+  assert.ok(sample.commercial.imports.some(i=>i.accepted.length&&i.rejected.length));assert.ok(sample.commercial.imports.some(i=>i.matched.length));assert.ok(sample.commercial.imports.some(i=>i.conflicts.length));
   assert.equal(sample.field.certificates[0].title,'SAMPLE / NOT PROOF OF DESTRUCTION');
   assert.ok(sample.field.jobs.every(j=>j.customerId===tenant));
   for(const j of sample.field.jobs)assert.ok(sample.commercial.jobs.some(c=>c.id===j.commercialJobId));
   assert.deepEqual(new Set(sample.field.jobs.map(j=>j.status)),new Set(['completed','exception','unassigned','assigned']));
-  assert.equal(sample.warehouse.orders.find(o=>o.direction==='outbound').status,'delivered');
+  assert.ok(sample.field.exports.some(e=>e.status==='pending'));
+  assert.deepEqual(new Set(sample.warehouse.orders.map(o=>o.status)),new Set(['closed','delivered','cancelled']));
+  assert.equal(sample.warehouse.records.length,17);assert.deepEqual([...sample.fixtures.reportKinds].sort(),Object.keys(EXPORTS).sort());
+  assert.ok(sample.manifest.scenarios.includes('crm-import-accepted-matched-conflict-rejected'));
  }
 });
 test('sample install is atomic, idempotent, scoped and refuses to replace existing work',async()=>{
