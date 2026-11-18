@@ -4,9 +4,9 @@
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
-    "db:local": "wrangler d1 migrations apply irm-employees --local --config wrangler.toml",
+    "db:local": "wrangler d1 migrations apply irm_employees --local --config wrangler.toml",
     "deploy": "wrangler deploy --config wrangler.toml",
-    "db:remote": "wrangler d1 migrations apply irm-employees --remote --config wrangler.toml",
+    "db:remote": "wrangler d1 migrations apply irm_employees --remote --config wrangler.toml",
     "deploy:preview": "wrangler deploy --config wrangler.toml"
   },
   "devDependencies": {
