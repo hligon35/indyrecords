@@ -95,3 +95,13 @@ The real approved ADP gateway, processing-status reconciliation, exceptions and 
 8. Run automated suites and device/browser tests, verify migration against the provided irm_employees D1 binding, protect preview with identity Access policies, deploy only when protected, confirm pilot results, and obtain owner launch sign-off.
 9. Resolve conflicting/ambiguous headcount (6 vs 7 pilot roles), workweek Monday 9 a.m. boundary, and November 8–21 pay-period schedule before enabling overtime/payroll reporting.
 
+
+## Updated email selection and implementation increment — November 18, 2026
+- Resend sending DNS/subdomain requested: `mail.alphazonelabs.com`.
+- Sender display identity: `IRM Time Clock <clock@alphazonelabs.com>`.
+- **Domain mismatch gate:** Resend must verify `alphazonelabs.com` for the actual From address, or the sender must be changed to a verified address under `mail.alphazonelabs.com`. DNS ownership is not proof of Resend verification. Sending remains disabled by default (`EMAIL_ENABLED=false`). Set `RESEND_API_KEY` as a Cloudflare secret only after verification and configure `RESEND_VERIFIED_FROM_DOMAIN=alphazonelabs.com` if using the requested root-domain From address.
+- Added migrations 0003 and 0004 with scoped attendance events, correction requests, supervisor roles/assignments, employee schedules, notifications, exempt classification, pay-rate history and pending employee contact records. No migrations have been applied to the remote D1 database.
+- Added routes for simulation-only attendance events, employee correction requests and scoped approval, schedules, notifications, preview timecards, admin classification/rate maintenance, inactive account staging and supervisor assignment. A correction approval is NOT an ADP payroll entry.
+- Added backend Resend adapter with explicit verification and secret gates. Delivery has not been tested and notification sending is not enabled.
+- Managed identity provider, real email/password sign-in, account activation/invitations, kiosk PIN/enrollment, registered fixed-device location proof, secure offline queue, configured real ADP adapter, retention/backup and production rollout remain unimplemented or require third-party setup.
+- Preview calculations use an arbitrary seven-day rolling window and are not official weekly overtime or payroll estimates. Do not deploy as a payroll system.
