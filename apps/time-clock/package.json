@@ -1,1 +1,15 @@
-{"name":"irm-time-clock","private":true,"type":"module","scripts":{"dev":"wrangler dev","db:local":"wrangler d1 migrations apply irm-time-clock --local --config wrangler.toml","deploy":"wrangler deploy --config wrangler.toml"},"devDependencies":{"wrangler":"^4.0.0"}}
+{
+  "name": "irm-time-clock",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "db:local": "wrangler d1 migrations apply irm-employees --local --config wrangler.toml",
+    "deploy": "wrangler deploy --config wrangler.toml",
+    "db:remote": "wrangler d1 migrations apply irm-employees --remote --config wrangler.toml",
+    "deploy:preview": "wrangler deploy --config wrangler.toml"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  }
+}
