@@ -11,7 +11,7 @@ Independent, Access-protected employee PWA and Cloudflare Worker API. Shares the
 
 ## Local/production setup (manual)
 1. Request written employer authorization for ADP integration and the location-use policy, including break/shift rules, exceptions, payroll corrections and retention. Confirm ADP product and approved API scopes.
-2. Create D1 database `irm-employees` and replace the placeholder UUID in `wrangler.toml`; run migrations and verify the dedicated preview database. Migration `0002_indianapolis_worksite.sql` seeds only the supplied Indianapolis worksite, not employee identities.
+2. D1 database `irm_employees` is bound in `wrangler.toml` with the owner-supplied UUID. Apply migrations and verify the dedicated preview database. Migration `0002_indianapolis_worksite.sql` seeds only the supplied Indianapolis worksite, not employee identities.
 3. Configure Cloudflare Access (entire app + API) and set `ACCESS_ISSUER` and `ACCESS_AUDIENCE` secrets/vars. The Worker verifies the Access-signed JWT and rejects unprovisioned subjects.
 4. Insert approved employee rows, authorized admin roles and worksite assignments using an administrator-controlled bootstrap procedure (not a public endpoint). The Indianapolis worksite is seeded at latitude 39.80869, longitude -86.05169 with a 500-foot default radius; have the manager confirm that the location marks the required facility entrance or clock-in area.
 5. Keep `ADP_MODE=simulated` during development. No punches reach payroll. For real payroll, separately implement, review and deploy an authorized HTTPS ADP gateway; set `ADP_MODE=gateway`, `ADP_GATEWAY_URL`, `ADP_GATEWAY_ALLOWED_HOST` and secret `ADP_GATEWAY_TOKEN`. The gateway accepts `{eventId,workerId,type,worksiteId}` and returns `{state:'PENDING'|'CONFIRMED',reference}`. It MUST implement OAuth, product-specific mapping, idempotency, provider confirmation and reconciliation. This is a contract, not a verified vendor integration.
@@ -31,7 +31,7 @@ The Worker is named `irm-time-clock-preview`, with `workers_dev = true` and `pre
 From repository root, after installing dependencies and configuring the database UUID and Access settings:
 ```powershell
 cd apps/time-clock
-npx wrangler d1 migrations apply irm-employees --remote --config wrangler.toml
+npx wrangler d1 migrations apply irm_employees --remote --config wrangler.toml
 npx wrangler deploy --config wrangler.toml
 ```
 Do not run these until Cloudflare Access and the D1 binding are configured. The test URL is not guaranteed until Wrangler reports a successful deployment.
