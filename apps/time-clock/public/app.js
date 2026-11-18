@@ -40,7 +40,7 @@ async function punch(type){
   const {event:p}=await api('/attendance/events',{method:'POST',body:JSON.stringify({type,worksiteId:site.id,requestId,location})});
   note(p.provider_state==='CONFIRMED'?'Punch confirmed by the connected provider.':p.provider_state==='SIMULATED'?'Attendance event saved in SIMULATION. Not sent to ADP.':'Punch status: '+p.provider_state+'. '+(p.provider_message||'Check status before retrying.'),p.provider_state==='UNKNOWN'?'error':'success');
   await Promise.all([history(),attendanceHistory()]);
- }catch(e){note(e.message,'error')}finally{busy=false;document.querySelectorAll('[data-punch]').forEach(b=>b.disabled=false)}
+ }catch(e){note(e.message,'error')}finally{busy=false;document.querySelectorAll('[data-attendance]').forEach(b=>b.disabled=false)}
 }
 async function boot(){
  try{
@@ -53,7 +53,7 @@ async function boot(){
 }
 $('site').addEventListener('change',showSite);
 $('radius').addEventListener('input',()=>{$('radius-output').textContent=$('radius').value+' feet'});
-document.querySelectorAll('[data-punch]').forEach(b=>b.addEventListener('click',()=>punch(b.dataset.attendance)));
+document.querySelectorAll('[data-attendance]').forEach(b=>b.addEventListener('click',()=>punch(b.dataset.attendance)));
 $('refresh').addEventListener('click',()=>history().catch(e=>note(e.message,'error')));
 $('site-form').addEventListener('submit',async e=>{
  e.preventDefault();const s=selected();if(!s)return note('Select an existing worksite. New site provisioning requires an approved admin operation.','error');
@@ -82,11 +82,13 @@ async function corrections(){
 $('attendance-refresh').addEventListener('click',()=>attendanceHistory().catch(e=>note(e.message,'error')));
 $('notifications-refresh').addEventListener('click',()=>notifications().catch(e=>note(e.message,'error')));
 $('timecard-refresh').addEventListener('click',async()=>{
- // Preview only: an explicit UTC 7-day range, NOT a verified employer workweek boundary.
  const now=Date.now(),to=new Date(now).toISOString(),from=new Date(now-7*86400000).toISOString();
- try{const x=await api('/attendance/timecard?from='+encodeURIComponent(from)+'&to='+encodeURIComponent(to));$('timecard-summary').hidden=false;$('timecard-summary').textContent='PRELIMINARY 7-day rolling window (not verified payroll week): '+x.totals.paidHours+' paid hours; unpaid lunch '+x.totals.unpaidLunchMinutes+' minutes; potential overtime '+(x.estimates.overtimeMinutes/60).toFixed(2)+' hours. '+(x.estimates.estimatedGrossCents===null?'Earnings estimate unavailable.':'Estimated gross $('clock').textContent=new Date().toLocaleTimeString([],{hour:'numeric',minute:'2-digit',second:'2-digit'})}
-tick();setInterval(tick,1000);boot();
-+(x.estimates.estimatedGrossCents/100).toFixed(2)+'.')+' Not official ADP payroll.'}catch(e){note(e.message,'error')}
+ try{
+  const x=await api('/attendance/timecard?from='+encodeURIComponent(from)+'&to='+encodeURIComponent(to));
+  $('timecard-summary').hidden=false;
+  const earnings=x.estimates.estimatedGrossCents===null?'Earnings estimate unavailable.':'Estimated gross USD '+(x.estimates.estimatedGrossCents/100).toFixed(2)+'.';
+  $('timecard-summary').textContent='PRELIMINARY 7-day rolling window (not verified payroll week): '+x.totals.paidHours+' paid hours; unpaid lunch '+x.totals.unpaidLunchMinutes+' minutes; potential overtime '+(x.estimates.overtimeMinutes/60).toFixed(2)+' hours. '+earnings+' Not official ADP payroll.';
+ }catch(e){note(e.message,'error')}
 });
 $('correction-form').addEventListener('submit',async e=>{
  e.preventDefault();const site=selected();if(!site)return note('No assigned worksite','error');
