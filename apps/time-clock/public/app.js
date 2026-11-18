@@ -21,7 +21,8 @@ async function loadSites(){
 }
 async function history(){
  const {punches}=await api('/history');
- $('history').innerHTML=punches.length?punches.map(p=>'<div class="history-row"><div><strong>'+clean(p.type.replace('_',' '))+'</strong><small>'+clean(new Date(p.submitted_at).toLocaleString())+'</small></div><span class="state">'+clean(p.provider_state)+'</span></div>').join(''):'<p class="hint">No punches have been submitted.</p>';
+ $('history').innerHTML=punches.length?punches.map(p=>'<div class="history-row"><div><strong>'+clean(p.type.replace('_',' '))+'</strong><small>'+clean(new Date(p.submitted_at).toLocaleString())+'</small></div><div class="state">'+clean(p.provider_state)+(p.provider_state==='PENDING'?'<button data-status="'+clean(p.id)+'">Check status</button>':'')+'</div></div>').join(''):'<p class="hint">No punches have been submitted.</p>';
+ $('history').querySelectorAll('[data-status]').forEach(button=>button.addEventListener('click',async()=>{button.disabled=true;try{const status=await api('/punches/'+encodeURIComponent(button.dataset.status)+'/status');note('Provider status: '+status.state+'. '+(status.message||''),status.state==='FAILED'?'error':'success');await history()}catch(e){note(e.message,'error')}finally{button.disabled=false}}));
 }
 function getLocation(){
  return new Promise((resolve,reject)=>{
