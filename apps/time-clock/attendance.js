@@ -119,5 +119,38 @@ export async function attendanceRoute(request,env,actor,path){
   await db.prepare('INSERT INTO pay_rate_history(employee_id,effective_at,hourly_cents,changed_by) VALUES(?,?,?,?)').bind(data.employeeId,data.effectiveAt,data.hourlyCents,actor.id).run();
   await audit(db,actor.id,'RATE_SET',data.employeeId,{effectiveAt:data.effectiveAt});return ok({saved:true},201);
  }
+
+ if(path==='/api/attendance/admin/employees'&&method==='GET'){
+  if(role!=='admin')return fail('ADMIN_REQUIRED',403);
+  const rows=await db.prepare("SELECT e.id,e.display_name,e.email,e.role,e.active,CASE WHEN sr.employee_id IS NULL THEN 0 ELSE 1 END AS is_supervisor FROM employees e LEFT JOIN supervisor_roles sr ON sr.employee_id=e.id ORDER BY e.display_name LIMIT 200").all();
+  return ok({employees:rows.results||[]});
+ }
+ if(path==='/api/attendance/admin/employees'&&method==='POST'){
+  if(role!=='admin')return fail('ADMIN_REQUIRED',403);
+  let data;try{data=await read(request)}catch{return fail('INVALID_EMPLOYEE')}
+  if(typeof data.name!=='string'||data.name.trim().length<2||data.name.length>120||typeof data.email!=='string'||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)||data.email.length>254||!['employee','supervisor'].includes(data.role)||typeof data.worksiteId!=='string')return fail('INVALID_EMPLOYEE');
+  const site=await db.prepare('SELECT id FROM worksites WHERE id=? AND enabled=1').bind(data.worksiteId).first();if(!site)return fail('INVALID_WORKSITE');
+  const id=uuid(),sub='pending:'+id;
+  try{
+   await db.batch([
+    db.prepare("INSERT INTO employees(id,identity_sub,display_name,email,role,active) VALUES(?,?,?,?,'employee',0)").bind(id,sub,data.name.trim(),data.email.trim().toLowerCase()),
+    db.prepare('INSERT INTO assignments(employee_id,worksite_id) VALUES(?,?)').bind(id,site.id),
+    ...(data.role==='supervisor'?[db.prepare('INSERT INTO supervisor_roles(employee_id,granted_by) VALUES(?,?)').bind(id,actor.id)]:[])
+   ]);
+  }catch{return fail('EMPLOYEE_ALREADY_EXISTS_OR_INVALID',409)}
+  await audit(db,actor.id,'EMPLOYEE_CREATED_INACTIVE',id,{role:data.role,worksiteId:site.id});
+  return ok({id,status:'INACTIVE_PENDING_IDENTITY_INVITATION',invitationSent:false},201);
+ }
+ if(path==='/api/attendance/admin/supervisor-assignment'&&method==='POST'){
+  if(role!=='admin')return fail('ADMIN_REQUIRED',403);
+  let data;try{data=await read(request)}catch{return fail('INVALID_ASSIGNMENT')}
+  if(typeof data.supervisorId!=='string'||typeof data.employeeId!=='string'||data.supervisorId===data.employeeId)return fail('INVALID_ASSIGNMENT');
+  const superRow=await db.prepare('SELECT employee_id FROM supervisor_roles WHERE employee_id=?').bind(data.supervisorId).first();
+  const employeeRow=await db.prepare('SELECT id FROM employees WHERE id=?').bind(data.employeeId).first();
+  if(!superRow||!employeeRow)return fail('INVALID_ASSIGNMENT',400);
+  await db.prepare('INSERT OR IGNORE INTO supervisor_assignments(supervisor_id,employee_id) VALUES(?,?)').bind(data.supervisorId,data.employeeId).run();
+  await audit(db,actor.id,'SUPERVISOR_ASSIGNED',data.employeeId,{supervisorId:data.supervisorId});
+  return ok({assigned:true},201);
+ }
  return fail('NOT_FOUND',404);
 }
