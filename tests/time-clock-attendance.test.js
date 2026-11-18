@@ -35,3 +35,9 @@ test('rejects malformed attendance inputs',()=>{
  assert.throws(()=>totalize([],'bad','2026-11-23T00:00:00.000Z'));
  assert.throws(()=>estimateWeekly(-2));
 });
+
+test('open shifts are flagged rather than inflated to range end',()=>{
+ const result=totalize([{event_type:'IN',occurred_at:'2026-11-16T09:00:00.000Z'}],'2026-11-16T00:00:00.000Z','2026-11-23T00:00:00.000Z');
+ assert.equal(result.incompleteShift,true);
+ assert.equal(result.paidMinutes,0);
+});
