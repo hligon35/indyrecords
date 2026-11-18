@@ -4,12 +4,12 @@ compatibility_date = "2026-11-01"
 workers_dev = true
 preview_urls = true
 
-# Replace database_id with the UUID returned when you create irm-employees.
+# Dedicated D1 database created by the project owner.
 # Protect the entire app + API with a Cloudflare Access application.
 [[d1_databases]]
 binding = "DB"
-database_name = "irm-employees"
-database_id = "00000000-0000-0000-0000-000000000000"
+database_name = "irm_employees"
+database_id = "1d5d2fef-9a3d-4996-b50c-6f2d3abd1c26"
 migrations_dir = "migrations"
 
 [vars]
