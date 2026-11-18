@@ -22,3 +22,5 @@ Independent, Access-protected employee PWA and Cloudflare Worker API. Shares the
 GPS supplied by the browser is untrusted and can be spoofed; server-side calculation does not prove physical presence. Accuracy is limited to 50 meters and a 60-second capture window; the conservative boundary check requires distance plus reported accuracy to be within the radius. A blocked clock-out must have an authorized human correction path so people can report time actually worked. Location coordinates are used for the decision but not retained in punch history. Provider timeouts are marked UNKNOWN, not silently retried to prevent duplicate payroll punches. Pending events need gateway-side reconciliation before any payroll confirmation claim.
 
 The RMS prototype's warehouse mutations, synthetic data, and release gates remain unchanged. Do not copy its demo sign-in into this live-facing application.
+
+An employee can select **Check status** for a pending entry. This queries the configured gateway's read-back endpoint and persists CONFIRMED or FAILED once verified. UNKNOWN results require supervisor reconciliation and are deliberately not automatically retried.
