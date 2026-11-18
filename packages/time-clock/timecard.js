@@ -14,8 +14,9 @@ export function totalize(events,start,end){
   if(active&&lunch)lunchMs+=elapsed;
   [active,lunch,paidBreak]=transition(active,lunch,paidBreak,e.event_type);previous=t;
  }
- const tail=finish-previous;if(active&&!lunch)paidMs+=tail;if(active&&lunch)lunchMs+=tail;
- return {paidMinutes:Math.round(paidMs/60000),unpaidLunchMinutes:Math.round(lunchMs/60000),paidHours:Math.round(paidMs/36000)/100};
+ // Incomplete shifts must not accumulate invented hours up to the end of the range.
+ // Only closed event intervals are counted; human review is required for missing OUT.
+ return {paidMinutes:Math.round(paidMs/60000),unpaidLunchMinutes:Math.round(lunchMs/60000),paidHours:Math.round(paidMs/36000)/100,incompleteShift:active};
 }
 function transition(active,lunch,paidBreak,type){
  if(type==='IN')return [true,false,false];
