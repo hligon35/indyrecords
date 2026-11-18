@@ -37,4 +37,6 @@ The real approved ADP gateway, processing-status reconciliation, exceptions and 
 ## Setup decisions (November 18, 2026)
 - Q1 — Underlying ADP payroll/time product: deferred until owner or payroll administrator confirms.
 - Q2 — Employee authentication: individual email-and-password accounts. Approved as desired UX; implementation is pending. The existing Worker only verifies Cloudflare Access JWTs and does NOT currently implement password registration, password hashing, password reset, MFA, or a complete email-password identity flow. Implement through a vetted identity provider or audited authentication service before employees use the app; never store plaintext passwords in D1.
-- Q3 — Initial employee-account provisioning: awaiting decision.
+- Q3 — Employee accounts are created by authorized administrators only. Administrators enter the employee's verified email address, and the system sends a single-use, expiring email invitation for the employee to set their own password. No public self-registration; accounts remain unusable until invitation acceptance and activation. Implement invitation issuance, secure password setup, expiration/revocation, duplicate-account checks, audit logging and restricted resend actions as part of the approved email/password identity provider. This is an approved requirement, not a claim that invitation delivery or local passwords are implemented.
+
+- Q4 — Supervisor permissions and administrative roles: awaiting decision.
