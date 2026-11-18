@@ -48,6 +48,7 @@ async function boot(){
   $('app').hidden=false;$('admin').hidden=me.role!=='admin';$('connection').textContent='Signed in';
   const profile=await api('/attendance/profile');$('supervisor-panel').hidden=!['admin','supervisor'].includes(profile.role);
   await Promise.all([loadSites(),history(),attendanceHistory(),notifications(),corrections()]);
+  if(me.role==='admin')await employees();
   note(me.mode==='gateway'?'Connected to the approved time-clock gateway.':'Simulation mode. Punches are not sent to ADP.');
  }catch(e){note('Access unavailable: '+e.message+'. Sign in through the approved Cloudflare Access application and ask your administrator to provision your employee account.','error')}
 }
@@ -100,6 +101,28 @@ $('schedule-form').addEventListener('submit',async e=>{
  e.preventDefault();const start=new Date($('schedule-start').value),end=new Date($('schedule-end').value);
  if(!Number.isFinite(start.getTime())||!Number.isFinite(end.getTime()))return note('Invalid schedule dates','error');
  try{await api('/attendance/schedules',{method:'POST',body:JSON.stringify({employeeId:$('schedule-employee').value,startAt:start.toISOString(),endAt:end.toISOString()})});e.target.reset();note('Schedule recorded.','success')}catch(err){note(err.message,'error')}
+});
+
+async function employees(){
+ const {employees:items}=await api('/attendance/admin/employees');
+ $('employee-list').innerHTML=items.length?items.map(x=>'<div class="history-row"><div><strong>'+clean(x.display_name)+'</strong><small>'+clean(x.email||'No email')+' · '+clean(x.id)+'</small></div><span class="state">'+(x.active?'Active':'Inactive')+(x.is_supervisor?' · Supervisor':'')+'</span></div>').join(''):'<p class="hint">No employee records.</p>';
+}
+$('employee-refresh').addEventListener('click',()=>employees().catch(e=>note(e.message,'error')));
+$('employee-form').addEventListener('submit',async e=>{
+ e.preventDefault();const site=selected();if(!site)return note('Choose worksite first','error');
+ try{const data=await api('/attendance/admin/employees',{method:'POST',body:JSON.stringify({name:$('employee-name-input').value,email:$('employee-email-input').value,role:$('employee-role-input').value,worksiteId:site.id})});e.target.reset();note('Employee staged INACTIVE ('+data.id+'). No invitation sent.','success');await employees()}catch(err){note(err.message,'error')}
+});
+$('assignment-form').addEventListener('submit',async e=>{
+ e.preventDefault();
+ try{await api('/attendance/admin/supervisor-assignment',{method:'POST',body:JSON.stringify({supervisorId:$('assignment-supervisor').value,employeeId:$('assignment-employee').value})});e.target.reset();note('Supervisor assignment saved.','success')}catch(err){note(err.message,'error')}
+});
+$('classification-form').addEventListener('submit',async e=>{
+ e.preventDefault();
+ try{await api('/attendance/admin/classification',{method:'POST',body:JSON.stringify({employeeId:$('classification-employee').value,classification:$('classification-type').value,effectiveAt:new Date().toISOString()})});note('Classification recorded with an effective date.','success')}catch(err){note(err.message,'error')}
+});
+$('pay-rate-form').addEventListener('submit',async e=>{
+ e.preventDefault();const cents=Math.round(Number($('rate-hourly').value)*100);
+ try{await api('/attendance/admin/rate',{method:'POST',body:JSON.stringify({employeeId:$('rate-employee').value,hourlyCents:cents,effectiveAt:new Date().toISOString()})});e.target.reset();note('Preview pay rate recorded with an effective date.','success')}catch(err){note(err.message,'error')}
 });
 
 function tick(){$('clock').textContent=new Date().toLocaleTimeString([],{hour:'numeric',minute:'2-digit',second:'2-digit'})}
