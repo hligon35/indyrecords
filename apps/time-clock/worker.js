@@ -36,6 +36,7 @@ async function sendProvider(env,employee,type,site,punchId){
 }
 export default {async fetch(request,env){
  const path=new URL(request.url).pathname;
+ if(!path.startsWith('/api/'))return env.ASSETS?env.ASSETS.fetch(request):error('ASSETS_NOT_CONFIGURED',503);
  if(!env.DB)return error('DATABASE_NOT_CONFIGURED',503);
  const sub=await identity(request,env);if(!sub)return error('SIGN_IN_REQUIRED',401);
  const employee=await env.DB.prepare('SELECT * FROM employees WHERE identity_sub=? AND active=1').bind(sub).first();
