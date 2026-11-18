@@ -32,31 +32,73 @@ function getLocation(){
 }
 async function punch(type){
  if(busy)return;const site=selected();if(!site)return note('No worksite is assigned to your account. Contact an administrator.','error');
- busy=true;document.querySelectorAll('[data-punch]').forEach(b=>b.disabled=true);
+ busy=true;document.querySelectorAll('[data-attendance]').forEach(b=>b.disabled=true);
  const requestId=crypto.randomUUID();
  try{
   note('Checking location and submitting '+type.toLowerCase().replace('_',' ')+'…');
   const location=site.geofence_enabled?await getLocation():null;
-  const {punch:p}=await api('/punches',{method:'POST',body:JSON.stringify({type,worksiteId:site.id,requestId,location})});
-  note(p.provider_state==='CONFIRMED'?'Punch confirmed by the connected provider.':p.provider_state==='SIMULATED'?'Simulated punch saved. This is NOT a payroll clock punch.':'Punch status: '+p.provider_state+'. '+(p.provider_message||'Check status before retrying.'),p.provider_state==='UNKNOWN'?'error':'success');
-  await history();
+  const {event:p}=await api('/attendance/events',{method:'POST',body:JSON.stringify({type,worksiteId:site.id,requestId,location})});
+  note(p.provider_state==='CONFIRMED'?'Punch confirmed by the connected provider.':p.provider_state==='SIMULATED'?'Attendance event saved in SIMULATION. Not sent to ADP.':'Punch status: '+p.provider_state+'. '+(p.provider_message||'Check status before retrying.'),p.provider_state==='UNKNOWN'?'error':'success');
+  await Promise.all([history(),attendanceHistory()]);
  }catch(e){note(e.message,'error')}finally{busy=false;document.querySelectorAll('[data-punch]').forEach(b=>b.disabled=false)}
 }
 async function boot(){
  try{
   me=await api('/me');$('employee-name').textContent=me.name;$('mode').textContent=me.mode==='gateway'?'Payroll integration':'Simulation only';
   $('app').hidden=false;$('admin').hidden=me.role!=='admin';$('connection').textContent='Signed in';
-  await Promise.all([loadSites(),history()]);
+  const profile=await api('/attendance/profile');$('supervisor-panel').hidden=!['admin','supervisor'].includes(profile.role);
+  await Promise.all([loadSites(),history(),attendanceHistory(),notifications(),corrections()]);
   note(me.mode==='gateway'?'Connected to the approved time-clock gateway.':'Simulation mode. Punches are not sent to ADP.');
  }catch(e){note('Access unavailable: '+e.message+'. Sign in through the approved Cloudflare Access application and ask your administrator to provision your employee account.','error')}
 }
 $('site').addEventListener('change',showSite);
 $('radius').addEventListener('input',()=>{$('radius-output').textContent=$('radius').value+' feet'});
-document.querySelectorAll('[data-punch]').forEach(b=>b.addEventListener('click',()=>punch(b.dataset.punch)));
+document.querySelectorAll('[data-punch]').forEach(b=>b.addEventListener('click',()=>punch(b.dataset.attendance)));
 $('refresh').addEventListener('click',()=>history().catch(e=>note(e.message,'error')));
 $('site-form').addEventListener('submit',async e=>{
  e.preventDefault();const s=selected();if(!s)return note('Select an existing worksite. New site provisioning requires an approved admin operation.','error');
  try{await api('/admin/sites',{method:'POST',body:JSON.stringify({id:s.id,name:$('site-name').value,latitude:Number($('latitude').value),longitude:Number($('longitude').value),radiusFeet:Number($('radius').value),geofenceEnabled:$('geofence-enabled').checked})});await loadSites();note('Worksite settings saved. Future punch requests use the new geofence.','success')}catch(err){note(err.message,'error')}
 });
+
+async function attendanceHistory(){
+ const {events}=await api('/attendance/events');
+ $('attendance-history').innerHTML=events.length?events.slice(0,15).map(e=>'<div class="history-row"><div><strong>'+clean(e.event_type.replaceAll('_',' '))+'</strong><small>'+clean(new Date(e.occurred_at).toLocaleString())+'</small></div><span class="state">'+clean(e.provider_state)+'</span></div>').join(''):'<p class="hint">No attendance events recorded.</p>';
+}
+async function notifications(){
+ const {items}=await api('/attendance/notifications');
+ $('notifications-list').innerHTML=items.length?items.slice(0,20).map(x=>'<div class="history-row"><div><strong>'+clean(x.event_kind)+'</strong><small>'+clean(x.detail)+'</small></div><small>'+clean(new Date(x.created_at+'Z').toLocaleString())+'</small></div>').join(''):'<p class="hint">No notifications.</p>';
+}
+async function corrections(){
+ const {requests}=await api('/attendance/requests');const panel=$('correction-list');
+ if(!panel)return;
+ const review=me.role==='admin'||!$('supervisor-panel').hidden;
+ panel.innerHTML=requests.length?requests.map(x=>'<div class="history-row"><div><strong>'+clean(x.display_name)+' — '+clean(x.event_type)+'</strong><small>'+clean(new Date(x.requested_at).toLocaleString())+' · '+clean(x.status)+'</small><small>'+clean(x.reason)+'</small></div>'+(review&&x.status==='PENDING'?'<div><button data-review="'+clean(x.id)+'" data-decision="APPROVED">Approve</button><button data-review="'+clean(x.id)+'" data-decision="REJECTED">Reject</button></div>':'')+'</div>').join(''):'<p class="hint">No correction requests.</p>';
+ panel.querySelectorAll('[data-review]').forEach(button=>button.addEventListener('click',async()=>{
+  const reason=prompt('Required review reason (at least 5 characters):');if(!reason||reason.trim().length<5)return;
+  button.disabled=true;
+  try{await api('/attendance/review',{method:'POST',body:JSON.stringify({id:button.dataset.review,decision:button.dataset.decision,reason})});note('Correction review recorded; not submitted to payroll.','success');await Promise.all([corrections(),notifications()])}catch(e){note(e.message,'error')}finally{button.disabled=false}
+ }));
+}
+$('attendance-refresh').addEventListener('click',()=>attendanceHistory().catch(e=>note(e.message,'error')));
+$('notifications-refresh').addEventListener('click',()=>notifications().catch(e=>note(e.message,'error')));
+$('timecard-refresh').addEventListener('click',async()=>{
+ // Preview only: an explicit UTC 7-day range, NOT a verified employer workweek boundary.
+ const now=Date.now(),to=new Date(now).toISOString(),from=new Date(now-7*86400000).toISOString();
+ try{const x=await api('/attendance/timecard?from='+encodeURIComponent(from)+'&to='+encodeURIComponent(to));$('timecard-summary').hidden=false;$('timecard-summary').textContent='PRELIMINARY 7-day rolling window (not verified payroll week): '+x.totals.paidHours+' paid hours; unpaid lunch '+x.totals.unpaidLunchMinutes+' minutes; potential overtime '+(x.estimates.overtimeMinutes/60).toFixed(2)+' hours. '+(x.estimates.estimatedGrossCents===null?'Earnings estimate unavailable.':'Estimated gross $('clock').textContent=new Date().toLocaleTimeString([],{hour:'numeric',minute:'2-digit',second:'2-digit'})}
+tick();setInterval(tick,1000);boot();
++(x.estimates.estimatedGrossCents/100).toFixed(2)+'.')+' Not official ADP payroll.'}catch(e){note(e.message,'error')}
+});
+$('correction-form').addEventListener('submit',async e=>{
+ e.preventDefault();const site=selected();if(!site)return note('No assigned worksite','error');
+ const date=new Date($('correction-time').value);if(!Number.isFinite(date.getTime()))return note('Invalid correction date','error');
+ const payload={type:$('correction-type').value,worksiteId:site.id,requestedAt:date.toISOString(),reason:$('correction-reason').value,source:'ONLINE',requestId:crypto.randomUUID()};
+ try{await api('/attendance/requests',{method:'POST',body:JSON.stringify(payload)});e.target.reset();note('Correction submitted for supervisor review. No ADP punch was created.','success');await corrections()}catch(err){note(err.message,'error')}
+});
+$('schedule-form').addEventListener('submit',async e=>{
+ e.preventDefault();const start=new Date($('schedule-start').value),end=new Date($('schedule-end').value);
+ if(!Number.isFinite(start.getTime())||!Number.isFinite(end.getTime()))return note('Invalid schedule dates','error');
+ try{await api('/attendance/schedules',{method:'POST',body:JSON.stringify({employeeId:$('schedule-employee').value,startAt:start.toISOString(),endAt:end.toISOString()})});e.target.reset();note('Schedule recorded.','success')}catch(err){note(err.message,'error')}
+});
+
 function tick(){$('clock').textContent=new Date().toLocaleTimeString([],{hour:'numeric',minute:'2-digit',second:'2-digit'})}
 tick();setInterval(tick,1000);boot();
