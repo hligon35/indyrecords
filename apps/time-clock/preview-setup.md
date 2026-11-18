@@ -33,3 +33,8 @@ For the designated manager, use `'admin'` instead of `'employee'` and assign the
 
 ## Before payroll go-live
 The real approved ADP gateway, processing-status reconciliation, exceptions and corrected punch approvals, mobile/device acceptance, privacy policy, backup and retention, and a security review are required. Tests in a browser with self-reported GPS coordinates do not prove physical presence; a malicious device can spoof location. Never represent simulation punches as actual payroll entries.
+
+## Setup decisions (November 18, 2026)
+- Q1 — Underlying ADP payroll/time product: deferred until owner or payroll administrator confirms.
+- Q2 — Employee authentication: individual email-and-password accounts. Approved as desired UX; implementation is pending. The existing Worker only verifies Cloudflare Access JWTs and does NOT currently implement password registration, password hashing, password reset, MFA, or a complete email-password identity flow. Implement through a vetted identity provider or audited authentication service before employees use the app; never store plaintext passwords in D1.
+- Q3 — Initial employee-account provisioning: awaiting decision.
