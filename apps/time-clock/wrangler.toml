@@ -1,19 +1,20 @@
-name = "irm-time-clock"
+name = "irm-time-clock-preview"
 main = "worker.js"
 compatibility_date = "2026-11-01"
-workers_dev = false
-preview_urls = false
+workers_dev = true
+preview_urls = true
 
-# Populate only in a separately approved environment.
+# Replace database_id with the UUID returned when you create irm-employees.
 # Protect the entire app + API with a Cloudflare Access application.
 [[d1_databases]]
 binding = "DB"
-database_name = "irm-time-clock"
+database_name = "irm-employees"
 database_id = "00000000-0000-0000-0000-000000000000"
 migrations_dir = "migrations"
 
 [vars]
 ADP_MODE = "simulated"
+APP_ENV = "preview"
 
 # Publish the standalone PWA and Worker at the same origin.
 # Restrict the entire hostname with Cloudflare Access before live use.
