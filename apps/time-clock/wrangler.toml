@@ -18,6 +18,6 @@ ADP_MODE = "simulated"
 # Publish the standalone PWA and Worker at the same origin.
 # Restrict the entire hostname with Cloudflare Access before live use.
 [assets]
-directory = "."
+directory = "./public"
 binding = "ASSETS"
 run_worker_first = ["/api/*"]
