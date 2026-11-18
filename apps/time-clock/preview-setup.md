@@ -2,7 +2,7 @@
 
 ## Fixed preview configuration
 - Worker name: `irm-time-clock-preview`
-- D1 database name: `irm-employees`
+- D1 database name: `irm_employees`
 - Worksite ID: `irm-indianapolis-30th`
 - Worksite address: 6737 E 30th St, Suite B, Indianapolis, IN 46219, United States
 - Worksite coordinate: 39.80869, -86.05169 (user supplied; management must verify)
@@ -11,10 +11,10 @@
 - Security: Cloudflare Access application protecting all routes (not only `/api`). Employees need to be specifically provisioned in D1.
 
 ## Cloudflare setup
-1. Create a D1 database named `irm-employees`. Record its UUID, and replace the zero UUID in `apps/time-clock/wrangler.toml`. D1 name alone cannot create or bind the database.
+1. D1 database `irm_employees` has been supplied (ID `1d5d2fef-9a3d-4996-b50c-6f2d3abd1c26`) and its binding is configured in `apps/time-clock/wrangler.toml`. Verify the database is in the Cloudflare account used for deployment.
 2. Configure a Cloudflare Access policy that only allows pilot participants on the eventual `workers.dev` hostname. Confirm the Access policy covers both the PWA and `/api/*`. Cloudflare account plans and Access application hostname support may affect this: if the preview hostname cannot be protected with Access, **do not** expose employee punches there; use a managed preview custom hostname or local testing instead.
 3. Configure `ACCESS_ISSUER` to the exact `https://<team>.cloudflareaccess.com` issuer and `ACCESS_AUDIENCE` to that specific Access application AUD. Do not put privileged tokens or API credentials in source control.
-4. After database UUID + Access are configured, from `apps/time-clock`: `npx wrangler d1 migrations apply irm-employees --remote --config wrangler.toml`, then `npx wrangler deploy --config wrangler.toml`.
+4. After database UUID + Access are configured, from `apps/time-clock`: `npx wrangler d1 migrations apply irm_employees --remote --config wrangler.toml`, then `npx wrangler deploy --config wrangler.toml`.
 5. Get the exact `workers.dev` URL from the Wrangler deployment output. It cannot be predicted from the repo alone. Verify Access protection in a private browser before inviting any testers.
 6. Provision employees with their actual Access JWT subject (`sub`) and approved worksite assignment, using administrator-only D1 operations. Do not expose a public self-registration API. Suggested commands are included below.
 7. Run manual GPS tests on site and outside the allowed radius. Check that clock-in/out and break events are marked SIMULATED, not ADP CONFIRMED.
