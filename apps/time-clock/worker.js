@@ -1,4 +1,5 @@
 import {validateRadius,validateCoordinate,validatePunchType,verifyGeofence} from '../../packages/time-clock/policy.js';
+import {attendanceRoute} from './attendance.js';
 const response=(data,status=200)=>new Response(JSON.stringify(data),{status,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'}});
 const error=(code,status=400)=>response({error:code},status);
 const MAX_BODY=4096;
@@ -35,13 +36,18 @@ async function sendProvider(env,employee,type,site,punchId){
  return {state:data.state,ref:String(data.reference||'').slice(0,120),message:'Submission received; follow-up verification required if pending.'};
 }
 export default {async fetch(request,env){
- const path=new URL(request.url).pathname;
+ const url=new URL(request.url),path=url.pathname;
+ if(path.startsWith('/api/')&&!['GET','HEAD','OPTIONS'].includes(request.method)){
+  const origin=request.headers.get('Origin');
+  if(origin!==url.origin)return error('SAME_ORIGIN_REQUIRED',403);
+ }
  if(!path.startsWith('/api/'))return env.ASSETS?env.ASSETS.fetch(request):error('ASSETS_NOT_CONFIGURED',503);
  if(!env.DB)return error('DATABASE_NOT_CONFIGURED',503);
  const sub=await identity(request,env);if(!sub)return error('SIGN_IN_REQUIRED',401);
  const employee=await env.DB.prepare('SELECT * FROM employees WHERE identity_sub=? AND active=1').bind(sub).first();
  if(!employee)return error('ACCOUNT_NOT_PROVISIONED',403);
  if(path==='/'&&request.method==='GET')return new Response('IRM Time Clock API. Serve the PWA from an Access-protected static origin.',{headers:{'content-type':'text/plain','cache-control':'no-store'}});
+ if(path.startsWith('/api/attendance/'))return attendanceRoute(request,env,employee,path);
  if(path==='/api/me'&&request.method==='GET')return response({id:employee.id,name:employee.display_name,role:employee.role,mode:env.ADP_MODE==='gateway'?'gateway':'simulated'});
  if(path==='/api/sites'&&request.method==='GET'){
  const result=employee.role==='admin'?await env.DB.prepare('SELECT * FROM worksites ORDER BY name').all():await env.DB.prepare('SELECT s.* FROM worksites s JOIN assignments a ON a.worksite_id=s.id WHERE a.employee_id=? AND s.enabled=1 ORDER BY s.name').bind(employee.id).all();
