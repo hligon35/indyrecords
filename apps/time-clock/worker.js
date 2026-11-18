@@ -47,6 +47,28 @@ export default {async fetch(request,env){
  const result=employee.role==='admin'?await env.DB.prepare('SELECT * FROM worksites ORDER BY name').all():await env.DB.prepare('SELECT s.* FROM worksites s JOIN assignments a ON a.worksite_id=s.id WHERE a.employee_id=? AND s.enabled=1 ORDER BY s.name').bind(employee.id).all();
  return response({sites:result.results||[]});
  }
+ if(path.startsWith('/api/punches/')&&path.endsWith('/status')&&request.method==='GET'){
+ const punchId=path.slice('/api/punches/'.length,-'/status'.length);
+ if(!/^[a-f0-9-]{36}$/i.test(punchId))return error('INVALID_PUNCH_ID');
+ const punch=await env.DB.prepare('SELECT * FROM punches WHERE id=? AND employee_id=?').bind(punchId,employee.id).first();
+ if(!punch)return error('NOT_FOUND',404);
+ if(punch.provider_state!=='PENDING'||env.ADP_MODE!=='gateway')return response({state:punch.provider_state,message:punch.provider_message});
+ if(!env.ADP_GATEWAY_URL||!env.ADP_GATEWAY_TOKEN||!env.ADP_GATEWAY_ALLOWED_HOST)return error('ADP_NOT_CONFIGURED',503);
+ const endpoint=new URL(env.ADP_GATEWAY_URL);
+ if(endpoint.protocol!=='https:'||endpoint.hostname!==env.ADP_GATEWAY_ALLOWED_HOST)return error('ADP_GATEWAY_UNTRUSTED',503);
+ endpoint.searchParams.set('eventId',punch.id);
+ try{
+ const upstream=await fetch(endpoint.toString(),{headers:{authorization:'Bearer '+env.ADP_GATEWAY_TOKEN}});
+ if(!upstream.ok)return error('PROVIDER_STATUS_UNAVAILABLE',502);
+ const data=await upstream.json();
+ if(!['PENDING','CONFIRMED','FAILED'].includes(data.state))return error('INVALID_PROVIDER_STATUS',502);
+ if(data.state!=='PENDING'){
+  await env.DB.prepare('UPDATE punches SET provider_state=?,provider_message=? WHERE id=? AND provider_state=?').bind(data.state,'Provider status verified by configured gateway.',punch.id,'PENDING').run();
+  await audit(env.DB,employee.id,'PUNCH_RECONCILED',punch.id,{state:data.state});
+ }
+ return response({state:data.state,message:data.state==='PENDING'?'Awaiting ADP processing.':'Gateway reported '+data.state});
+ }catch{return error('PROVIDER_STATUS_UNAVAILABLE',502)}
+ }
  if(path==='/api/history'&&request.method==='GET'){
  const result=await env.DB.prepare('SELECT p.id,p.worksite_id,p.type,p.submitted_at,p.provider_state,p.provider_message FROM punches p WHERE p.employee_id=? ORDER BY p.submitted_at DESC LIMIT 60').bind(employee.id).all();
  return response({punches:result.results||[]});
