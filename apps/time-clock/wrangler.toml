@@ -1,0 +1,27 @@
+name = "irm-time-clock-preview"
+main = "worker.js"
+compatibility_date = "2026-11-01"
+workers_dev = true
+preview_urls = true
+
+# Dedicated D1 database created by the project owner.
+# Protect the entire app + API with a Cloudflare Access application.
+[[d1_databases]]
+binding = "DB"
+database_name = "irm_employees"
+database_id = "1d5d2fef-9a3d-4996-b50c-6f2d3abd1c26"
+migrations_dir = "migrations"
+
+[vars]
+ADP_MODE = "simulated"
+APP_ENV = "preview"
+EMAIL_ENABLED = "false"
+# Do not enable until root From domain alphazonelabs.com is verified in Resend.
+# Requested DNS/sending subdomain is mail.alphazonelabs.com, but the From address uses alphazonelabs.com.
+
+# Publish the standalone PWA and Worker at the same origin.
+# Restrict the entire hostname with Cloudflare Access before live use.
+[assets]
+directory = "./public"
+binding = "ASSETS"
+run_worker_first = ["/api/*"]
