@@ -15,6 +15,9 @@ migrations_dir = "migrations"
 [vars]
 ADP_MODE = "simulated"
 APP_ENV = "preview"
+EMAIL_ENABLED = "false"
+# Do not enable until root From domain alphazonelabs.com is verified in Resend.
+# Requested DNS/sending subdomain is mail.alphazonelabs.com, but the From address uses alphazonelabs.com.
 
 # Publish the standalone PWA and Worker at the same origin.
 # Restrict the entire hostname with Cloudflare Access before live use.
