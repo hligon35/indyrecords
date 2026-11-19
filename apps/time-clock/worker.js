@@ -1,28 +1,10 @@
 import {validateRadius,validateCoordinate,validatePunchType,verifyGeofence} from '../../packages/time-clock/policy.js';
 import {attendanceRoute} from './attendance.js';
+import {verifyAccess} from './access.js';
 import {checkPunchLocation,previewLocationBypass} from '../../packages/time-clock/preview-policy.js';
 const response=(data,status=200)=>new Response(JSON.stringify(data),{status,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'}});
 const error=(code,status=400)=>response({error:code},status);
 const MAX_BODY=4096;
-function decode64url(s){const v=s.replace(/-/g,'+').replace(/_/g,'/');return Uint8Array.from(atob(v+'='.repeat((4-v.length%4)%4)),x=>x.charCodeAt(0));}
-async function identity(request,env){
- const token=request.headers.get('Cf-Access-Jwt-Assertion');
- if(!token||!env.ACCESS_ISSUER||!env.ACCESS_AUDIENCE)return null;
- const parts=token.split('.');if(parts.length!==3)return null;
- let header,claims;
- try{header=JSON.parse(new TextDecoder().decode(decode64url(parts[0])));claims=JSON.parse(new TextDecoder().decode(decode64url(parts[1])))}catch{return null;}
- const issuer=env.ACCESS_ISSUER.replace(/\/$/,'');
- if(header.alg!=='RS256'||!header.kid||claims.iss!==issuer||!(Array.isArray(claims.aud)?claims.aud.includes(env.ACCESS_AUDIENCE):claims.aud===env.ACCESS_AUDIENCE)||typeof claims.sub!=='string'||!claims.sub||!Number.isFinite(claims.exp)||claims.exp*1000<=Date.now()||!Number.isFinite(claims.iat)||claims.iat*1000>Date.now()+60000||claims.nbf&&claims.nbf*1000>Date.now()+60000)return null;
- // Never accept identity headers without verifying the Access-signed JWT.
- let certs;try{const r=await fetch(issuer+'/cdn-cgi/access/certs');if(!r.ok)return null;certs=await r.json()}catch{return null;}
- const key=certs.keys?.find(k=>k.kid===header.kid&&k.kty==='RSA');
- if(!key)return null;
- try{
- const publicKey=await crypto.subtle.importKey('jwk',key,{name:'RSASSA-PKCS1-v1_5',hash:'SHA-256'},false,['verify']);
- const valid=await crypto.subtle.verify('RSASSA-PKCS1-v1_5',publicKey,decode64url(parts[2]),new TextEncoder().encode(parts[0]+'.'+parts[1]));
- return valid?claims.sub:null;
- }catch{return null;}
-}
 async function body(request){if(Number(request.headers.get('content-length'))>MAX_BODY)throw Error('PAYLOAD_TOO_LARGE');const raw=await request.text();if(raw.length>MAX_BODY)throw Error('PAYLOAD_TOO_LARGE');return JSON.parse(raw)}
 async function audit(db,actor,operation,id,detail){await db.prepare('INSERT INTO audit_log(id,actor_id,operation,resource_id,detail) VALUES(?,?,?,?,?)').bind(crypto.randomUUID(),actor,operation,id,JSON.stringify(detail).slice(0,1000)).run();}
 async function sendProvider(env,employee,type,site,punchId){
@@ -44,12 +26,9 @@ export default {async fetch(request,env){
  }
  if(!path.startsWith('/api/'))return env.ASSETS?env.ASSETS.fetch(request):error('ASSETS_NOT_CONFIGURED',503);
  if(!env.DB)return error('DATABASE_NOT_CONFIGURED',503);
- // Separate missing Worker configuration from absent or invalid Access credentials.
- // Neither case grants access; no token claims or credentials are returned to clients.
- if(!env.ACCESS_ISSUER||!env.ACCESS_AUDIENCE)return error('ACCESS_CONFIGURATION_REQUIRED',503);
- if(!request.headers.get('Cf-Access-Jwt-Assertion'))return error('ACCESS_TOKEN_NOT_FORWARDED',401);
- const sub=await identity(request,env);if(!sub)return error('ACCESS_TOKEN_INVALID_OR_EXPIRED',401);
- const employee=await env.DB.prepare('SELECT * FROM employees WHERE identity_sub=? AND active=1').bind(sub).first();
+ const access=await verifyAccess(request,env);
+ if(access.error)return error(access.error,access.status);
+ const employee=await env.DB.prepare('SELECT * FROM employees WHERE identity_sub=? AND active=1').bind(access.sub).first();
  if(!employee)return error('ACCOUNT_NOT_PROVISIONED',403);
  if(path==='/'&&request.method==='GET')return new Response('IRM Time Clock API. Serve the PWA from an Access-protected static origin.',{headers:{'content-type':'text/plain','cache-control':'no-store'}});
  if(path.startsWith('/api/attendance/'))return attendanceRoute(request,env,employee,path);

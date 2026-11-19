@@ -28,6 +28,15 @@ An employee can select **Check status** for a pending entry. This queries the co
 ## Temporary test deployment
 The Worker is named `irm-time-clock-preview`, with `workers_dev = true` and `preview_urls = true`; the exact `workers.dev` URL is assigned by your Cloudflare account after deployment. This is a **test deployment name**, not an ADP production integration. Configure Cloudflare Access with an allowlist of testing identities before deploying; a public URL exposes employee UI and API traffic to anyone even though API identity is checked. Keep `ADP_MODE=simulated`.
 
+### Verify sign-in after deployment
+
+Use the stable Worker hostname configured in the iOS app. In a private browser, signed-out navigation to both `/` and `/api/me` should start Cloudflare Access login. Sign in and check that `/api/me` returns the expected employee. The Worker checks the Access assertion header first and verifies the application cookie with the same rules when the header is absent.
+
+- `ACCESS_CONFIGURATION_REQUIRED` means the active Worker needs the team HTTPS origin and the exact audience tag of the Access application covering this hostname. Wrangler preserves dashboard variables across deploys.
+- `ACCESS_TOKEN_NOT_FORWARDED` means the Worker received neither the assertion header nor a usable application cookie. Verify protection of the exact hostname and API path.
+- `ACCESS_TOKEN_INVALID_OR_EXPIRED` means the credential failed verification. Check expiry, the configured issuer and the application-specific audience.
+- `ACCOUNT_NOT_PROVISIONED` means Access verification succeeded. Check that the verified Cloudflare subject is associated with the correct active D1 employee.
+
 From repository root, after installing dependencies and configuring the database UUID and Access settings:
 ```powershell
 cd apps/time-clock

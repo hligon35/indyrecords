@@ -3,13 +3,17 @@
 This is a **separate Expo iOS client** from `apps/mobile` (IRM RMS). It displays the independently deployed, Access-protected Time Clock PWA and does **not** include payroll credentials or local clock-punch authority. Browser and iOS WebView authentication/location behavior must be tested on a real iPhone.
 
 ## Setup requirements
-1. Cloudflare Worker preview must be deployed and secured (Cloudflare Access over the entire hostname, verified D1 binding, migrations, provisioned individual admin). There is no verified live URL yet.
+1. Use the deployed Time Clock Worker origin with Cloudflare Access protecting the page and API. Verify the D1 binding, migrations and active employee record for the intended administrator.
 2. Set `EXPO_PUBLIC_CLOCK_URL` to that HTTPS origin. Do not include secret tokens in this value. Managed login and Cloudflare Access can involve redirects and cookie policies; validate sign-in inside iOS WebView before employee use.
 3. `cd apps/time-clock-ios && npm install`; run `npx expo install --fix` to align native packages with Expo SDK before building; run `npm run doctor`.
 4. Authenticate `npx eas login` and `npx eas init` (create a **new** EAS project for this app, not the existing IRM RMS project); set `EAS_PROJECT_ID` to the resulting UUID in your build/update environment. Do not invent or reuse a project ID.
 5. Configure Apple Developer membership and iOS internal provisioning as requested by EAS. Add authorized testers.
 6. `npm run build:ios:preview` to create an internally distributed iOS build; `npm run ota:preview` after installing a compatible build.
 7. OTA updates only change JS/assets with matching runtime version and native dependencies. Changed native modules, iOS permissions, bundle IDs or runtime require a new native build. For updates, supply identical `EAS_PROJECT_ID` and `EXPO_PUBLIC_CLOCK_URL`.
+
+The preview OTA command checks that `EXPO_PUBLIC_CLOCK_URL` is an HTTPS origin before publishing. If the Access login redirects to an external identity provider, set `EXPO_PUBLIC_CLOCK_LOGIN_ORIGINS` to the comma-separated, exact HTTPS origins used in the approved login flow. Cloudflare Access team domains are included by default. Complete sign-in in the app WebView so its session cookies stay with the app.
+
+On the iPhone, tap **Update info** and compare the Worker origin, channel, runtime and running update ID with the iOS update in EAS. The current preview profile uses channel `preview` and runtime `0.1.0`. A compatible update normally downloads on a launch and runs on a subsequent full launch. Returning from the background refreshes attendance in the existing WebView.
 
 ## iOS testing
 - Preview UI is clearly marked NON-PAYROLL.

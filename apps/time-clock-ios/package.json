@@ -10,8 +10,8 @@
     "build:ios:preview": "npm run prepare:icon && npm run verify:icon && eas build --platform ios --profile preview",
     "build:ios:development": "npm run prepare:icon && npm run verify:icon && eas build --platform ios --profile development",
     "build:ios:production": "npm run prepare:icon && npm run verify:icon && eas build --platform ios --profile production",
-    "ota:preview": "npm run verify:icon && eas update --channel preview --platform ios --message \"IRM Time Clock preview update\"",
-    "ota:production": "npm run verify:icon && eas update --channel production --platform ios --message \"IRM Time Clock production update\"",
+    "ota:preview": "node scripts/verify-ota-config.cjs && npm run verify:icon && eas update --channel preview --platform ios --message \"IRM Time Clock preview update\"",
+    "ota:production": "node scripts/verify-ota-config.cjs && npm run verify:icon && eas update --channel production --platform ios --message \"IRM Time Clock production update\"",
     "verify:icon": "node scripts/verify-icon.cjs",
     "prepare:icon": "node scripts/prepare-icon.cjs"
   },

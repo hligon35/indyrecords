@@ -2,8 +2,13 @@ const raw=process.env.EXPO_PUBLIC_CLOCK_URL||'';
 let url=null;
 try {
  const parsed=new URL(raw);
- if(parsed.protocol==='https:'&&!parsed.username&&!parsed.password&&!parsed.search&&!parsed.hash)url=parsed.origin;
+ if(parsed.protocol==='https:'&&!parsed.username&&!parsed.password&&parsed.pathname==='/'&&!parsed.search&&!parsed.hash)url=parsed.origin;
 } catch {}
+const loginOrigins=(process.env.EXPO_PUBLIC_CLOCK_LOGIN_ORIGINS||'').split(',').map(value=>value.trim()).filter(Boolean).map(value=>{
+ const parsed=new URL(value);
+ if(parsed.protocol!=='https:'||parsed.origin!==value.replace(/\/$/,''))throw new Error('Clock login origins must be exact HTTPS origins.');
+ return parsed.origin;
+});
 const projectId=process.env.EAS_PROJECT_ID||'209c40ab-a4b8-4bca-b42f-c15bd5d0c2f9';
 module.exports={
  expo:{
@@ -28,6 +33,7 @@ module.exports={
    updates:{url:projectId?'https://u.expo.dev/'+projectId:undefined},
    extra:{
      clockUrl:url,
+     clockLoginOrigins:loginOrigins,
      eas:projectId?{projectId}:undefined,
      previewOnly:true
    }

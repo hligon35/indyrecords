@@ -3,6 +3,8 @@ main = "worker.js"
 compatibility_date = "2026-11-01"
 workers_dev = true
 preview_urls = true
+# Preserve deployment-specific bindings set in the Cloudflare dashboard.
+keep_vars = true
 
 # Dedicated D1 database created by the project owner.
 # Protect the entire app + API with a Cloudflare Access application.

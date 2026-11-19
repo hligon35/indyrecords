@@ -1,17 +1,24 @@
 const $=id=>document.getElementById(id);let me=null,sites=[];let busy=false;let testLocationBypass=false;let refreshing=null;let lastRefreshAt=0;
+let refreshAfterPunch=false;
+const signInErrors=new Set(['ACCESS_LOGIN_REQUIRED','ACCESS_TOKEN_NOT_FORWARDED','ACCESS_TOKEN_INVALID_OR_EXPIRED','SIGN_IN_REQUIRED']);
 const note=(message,type='')=>{$('notice').textContent=message;$('notice').className='notice '+type;};
 const clean=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 async function api(path,options={}){
- const res=await fetch('/api'+path,{...options,cache:'no-store',credentials:'same-origin',headers:{'content-type':'application/json',...options.headers}});
+ // Access may redirect an expired API session to a cross-origin login page. Open
+ // login as a document navigation so it can set cookies in this browser session.
+ const res=await fetch('/api'+path,{...options,cache:'no-store',credentials:'same-origin',redirect:'manual',headers:{'content-type':'application/json','x-requested-with':'XMLHttpRequest',...options.headers}});
+ if(res.type==='opaqueredirect'||res.redirected||(res.status>=300&&res.status<400))throw Error('ACCESS_LOGIN_REQUIRED');
+ if(res.status===401&&!res.headers.get('content-type')?.includes('application/json'))throw Error('ACCESS_LOGIN_REQUIRED');
+ if(res.status===403&&!res.headers.get('content-type')?.includes('application/json'))throw Error('ACCESS_POLICY_DENIED');
  let json;try{json=await res.json()}catch{throw Error('Invalid server response')}
  if(!res.ok)throw Error(json.error||'Request failed');
  return json;
 }
 const selected=()=>sites.find(x=>x.id===$('site').value);
 function showSite(){
- const s=selected();if(!s)return;
+ const s=selected();if(!s){$('site-detail').textContent='';return}
  $('site-detail').textContent=s.geofence_enabled?'Location required within '+s.radius_feet+' feet of this worksite.':'Location restriction is disabled for this site.';
- if(me.role==='admin'){$('site-name').value=s.name;$('latitude').value=s.latitude;$('longitude').value=s.longitude;$('radius').value=s.radius_feet;$('radius-output').textContent=s.radius_feet+' feet';$('geofence-enabled').checked=Boolean(s.geofence_enabled)}
+ if(me?.role==='admin'){$('site-name').value=s.name;$('latitude').value=s.latitude;$('longitude').value=s.longitude;$('radius').value=s.radius_feet;$('radius-output').textContent=s.radius_feet+' feet';$('geofence-enabled').checked=Boolean(s.geofence_enabled)}
 }
 async function loadSites(){
  const {sites:items}=await api('/sites');const prior=$('site').value;sites=items;
@@ -40,51 +47,92 @@ async function punch(type){
   const {event:p}=await api('/attendance/events',{method:'POST',body:JSON.stringify({type,worksiteId:site.id,requestId,location})});
   note(p.provider_state==='CONFIRMED'?'Punch confirmed by the connected provider.':p.provider_state==='SIMULATED'?'Attendance event saved in SIMULATION. Not sent to ADP.':'Punch status: '+p.provider_state+'. '+(p.provider_message||'Check status before retrying.'),p.provider_state==='UNKNOWN'?'error':'success');
   await Promise.all([history(),attendanceHistory()]);
- }catch(e){note(e.message,'error')}finally{busy=false;document.querySelectorAll('[data-attendance]').forEach(b=>b.disabled=false)}
+ }catch(e){
+  if(signInErrors.has(e.message)||e.message==='ACCOUNT_NOT_PROVISIONED')showAccountError(e);
+  else note(e.message,'error');
+ }finally{
+  busy=false;
+  document.querySelectorAll('[data-attendance]').forEach(b=>b.disabled=false);
+  if(refreshAfterPunch){refreshAfterPunch=false;refreshAccount()}
+ }
+}
+function clearAccountDetails(){
+ sites=[];testLocationBypass=false;
+ for(const id of ['site','site-detail','employee-name','history','attendance-history','notifications-list','my-corrections','correction-list','employee-list','timecard-summary'])$(id).replaceChildren();
+ $('timecard-summary').hidden=true;
+ for(const form of $('app').querySelectorAll('form'))form.reset();
+}
+function showAccountError(error){
+ const code=error.message;
+ const signIn=signInErrors.has(code);
+ const unprovisioned=code==='ACCOUNT_NOT_PROVISIONED';
+ me=null;
+ $('app').hidden=true;
+ $('admin').hidden=true;
+ $('supervisor-panel').hidden=true;
+ clearAccountDetails();
+ $('sign-in').hidden=!signIn;
+ $('retry-account').hidden=false;
+ $('connection').textContent=signIn?'Sign in required':unprovisioned?'Account inactive':'Connection unavailable';
+ const message={
+  ACCESS_LOGIN_REQUIRED:'Your Cloudflare Access session needs to be renewed. Open sign-in to continue.',
+  ACCESS_TOKEN_NOT_FORWARDED:'The Worker received no Cloudflare Access credential. Open sign-in. If this repeats, ask your administrator to check Access protection for this hostname and its API.',
+  ACCESS_TOKEN_INVALID_OR_EXPIRED:'The Worker could not verify the Cloudflare Access session. Open sign-in. If this repeats, ask your administrator to check the Access issuer and application audience.',
+  SIGN_IN_REQUIRED:'Open sign-in to connect to the Cloudflare Access session.',
+  ACCESS_POLICY_DENIED:'Access denied this request. Ask your administrator to check the Cloudflare Access policy for the Time Clock API.',
+  ACCOUNT_NOT_PROVISIONED:'Cloudflare Access sign-in succeeded. Ask your administrator to activate the Time Clock employee record for this identity.',
+  ACCESS_CONFIGURATION_REQUIRED:'The Time Clock Worker needs its Cloudflare Access issuer and application audience configured.',
+  ACCESS_VERIFICATION_UNAVAILABLE:'The Worker could not reach the Cloudflare Access signing keys. Retry the connection.'
+ }[code]||'Time Clock could not refresh your account. Retry the connection.';
+ note(message+' ('+code+')','error');
 }
 async function refreshAccount(){
  if(refreshing)return refreshing;
+ $('app').inert=true;
  refreshing=(async()=>{
   try{
    const account=await api('/me');
-   const priorIdentity=me?.id;
-   me=account;
-   if(priorIdentity&&priorIdentity!==me.id){
-    // Never show one employee's cached data to a different signed-in identity.
-    $('history').replaceChildren();$('attendance-history').replaceChildren();
-    $('notifications-list').replaceChildren();$('my-corrections').replaceChildren();
-    $('correction-list').replaceChildren();$('employee-list').replaceChildren();
-    $('timecard-summary').hidden=true;
+   if(me&&(me.id!==account.id||me.role!==account.role)){
+    $('app').hidden=true;
+    clearAccountDetails();
    }
-   $('employee-name').textContent=me.name;
-   $('mode').textContent=me.mode==='gateway'?'Payroll integration':'Simulation only';
-   $('app').hidden=false;
-   $('admin').hidden=me.role!=='admin';
-   $('connection').textContent='Signed in';
+   me=account;
    const profile=await api('/attendance/profile');
    testLocationBypass=Boolean(profile.previewLocationBypass);
    $('supervisor-panel').hidden=!['admin','supervisor'].includes(profile.role);
-   await Promise.all([loadSites(),history(),attendanceHistory(),notifications(),corrections(),...(me.role==='admin'?[employees()]:[])]);
+   const [worksites,...activity]=await Promise.allSettled([
+    loadSites(),history(),attendanceHistory(),notifications(),corrections(),
+    ...(me.role==='admin'?[employees()]:[]),...($('timecard-summary').hidden?[]:[loadTimecard()])
+   ]);
+   const sessionFailure=activity.find(result=>result.status==='rejected'&&
+    (signInErrors.has(result.reason.message)||result.reason.message==='ACCOUNT_NOT_PROVISIONED'));
+   if(sessionFailure)throw sessionFailure.reason;
+   if(worksites.status==='rejected')throw worksites.reason;
+   $('employee-name').textContent=me.name;
+   $('mode').textContent=me.mode==='gateway'?'Payroll integration':'Simulation only';
+   $('admin').hidden=me.role!=='admin';
+   $('app').hidden=false;
+   $('sign-in').hidden=true;
+   $('connection').textContent='Signed in';
    lastRefreshAt=Date.now();
+   const incomplete=activity.some(result=>result.status==='rejected');
+   $('retry-account').hidden=!incomplete;
+   if(incomplete){note('Signed in. Some attendance details could not refresh. Retry the connection.','error');return}
    note(testLocationBypass?'PREVIEW TEST: LOCATION RESTRICTIONS DISABLED. All events are simulated; not valid for payroll.':me.mode==='gateway'?'Connected to the approved time-clock gateway.':'Simulation mode. Punches are not sent to ADP.',testLocationBypass?'error':'');
   }catch(e){
-   if(['ACCESS_TOKEN_NOT_FORWARDED','ACCESS_TOKEN_INVALID_OR_EXPIRED','SIGN_IN_REQUIRED','ACCOUNT_NOT_PROVISIONED','ACCESS_CONFIGURATION_REQUIRED'].includes(e.message)){
-    me=null;sites=[];testLocationBypass=false;
-    $('app').hidden=true;
-    $('admin').hidden=true;
-    $('supervisor-panel').hidden=true;
-    $('connection').textContent='Sign in required';
-   }
-   note('Access unavailable: '+e.message+'. Sign in through the approved Cloudflare Access application and ask your administrator to provision your employee account.','error');
+   showAccountError(e);
   }
  })();
- try{await refreshing}finally{refreshing=null}
+ try{await refreshing}finally{refreshing=null;$('app').inert=false}
 }
 function resumeClock(){
- // Do not interrupt an attendance submission; its completion already refreshes activity.
- if(busy||document.visibilityState==='hidden'||Date.now()-lastRefreshAt<1000)return;
+ if(document.visibilityState==='hidden')return;
+ if(busy){refreshAfterPunch=true;return}
+ if(Date.now()-lastRefreshAt<1000)return;
  refreshAccount();
 }
+$('sign-in').addEventListener('click',()=>window.location.reload());
+$('retry-account').addEventListener('click',()=>refreshAccount());
 window.addEventListener('irm-clock-resume',resumeClock);
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')resumeClock()});
 window.addEventListener('pageshow',event=>{if(event.persisted)resumeClock()});
@@ -108,6 +156,7 @@ async function notifications(){
 }
 async function corrections(){
  const {requests}=await api('/attendance/requests');const panel=$('correction-list');
+ if(!me)return;
  const my=$('my-corrections');if(my)my.innerHTML=requests.filter(x=>x.employee_id===me.id).length?requests.filter(x=>x.employee_id===me.id).map(x=>'<div class="history-row"><div><strong>'+clean(x.event_type)+'</strong><small>'+clean(new Date(x.requested_at).toLocaleString())+'</small></div><span class="state">'+clean(x.status)+'</span></div>').join(''):'<p class="hint">No requests submitted.</p>';
  if(!panel)return;
  const review=me.role==='admin'||!$('supervisor-panel').hidden;
@@ -120,15 +169,14 @@ async function corrections(){
 }
 $('attendance-refresh').addEventListener('click',()=>attendanceHistory().catch(e=>note(e.message,'error')));
 $('notifications-refresh').addEventListener('click',()=>notifications().catch(e=>note(e.message,'error')));
-$('timecard-refresh').addEventListener('click',async()=>{
+async function loadTimecard(){
  const now=Date.now(),to=new Date(now).toISOString(),from=new Date(now-7*86400000).toISOString();
- try{
-  const x=await api('/attendance/timecard?from='+encodeURIComponent(from)+'&to='+encodeURIComponent(to));
-  $('timecard-summary').hidden=false;
-  const earnings=x.estimates.estimatedGrossCents===null?'Earnings estimate unavailable.':'Estimated gross USD '+(x.estimates.estimatedGrossCents/100).toFixed(2)+'.';
-  $('timecard-summary').textContent='PRELIMINARY 7-day rolling window (not verified payroll week): '+x.totals.paidHours+' paid hours; unpaid lunch '+x.totals.unpaidLunchMinutes+' minutes; potential overtime '+(x.estimates.overtimeMinutes/60).toFixed(2)+' hours. '+earnings+' Not official ADP payroll.';
- }catch(e){note(e.message,'error')}
-});
+ const x=await api('/attendance/timecard?from='+encodeURIComponent(from)+'&to='+encodeURIComponent(to));
+ $('timecard-summary').hidden=false;
+ const earnings=x.estimates.estimatedGrossCents===null?'Earnings estimate unavailable.':'Estimated gross USD '+(x.estimates.estimatedGrossCents/100).toFixed(2)+'.';
+ $('timecard-summary').textContent='PRELIMINARY 7-day rolling window (not verified payroll week): '+x.totals.paidHours+' paid hours; unpaid lunch '+x.totals.unpaidLunchMinutes+' minutes; potential overtime '+(x.estimates.overtimeMinutes/60).toFixed(2)+' hours. '+earnings+' Not official ADP payroll.';
+}
+$('timecard-refresh').addEventListener('click',()=>loadTimecard().catch(e=>note(e.message,'error')));
 $('correction-form').addEventListener('submit',async e=>{
  e.preventDefault();const site=selected();if(!site)return note('No assigned worksite','error');
  const date=new Date($('correction-time').value);if(!Number.isFinite(date.getTime()))return note('Invalid correction date','error');

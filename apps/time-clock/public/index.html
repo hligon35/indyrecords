@@ -1,8 +1,10 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="theme-color" content="#10253c"><title>IRM Time Clock</title><link rel="manifest" href="./manifest.webmanifest"><link rel="stylesheet" href="./styles.css"></head>
-<body><main class="shell"><header><div class="logo">IRM</div><div><strong>IRM Time Clock</strong><small>Employee Time & Attendance</small></div><span id="connection" class="pill">Sign in required</span></header>
+<body><main class="shell"><header><div class="logo">IRM</div><div><strong>IRM Time Clock</strong><small>Employee Time & Attendance</small></div><span id="connection" class="pill">Checking session</span></header>
 <section class="hero"><p class="eyebrow">TIME & ATTENDANCE</p><h1>Make every minute count.</h1><p>Your punches are verified against your assigned worksite and payroll provider.</p></section>
 <div id="notice" class="notice" role="status">Loading your account…</div>
+<button id="sign-in" type="button" hidden>Open sign-in</button>
+<button id="retry-account" type="button" hidden>Retry connection</button>
 <section id="app" hidden><div class="greeting"><div><p class="eyebrow">SIGNED IN AS</p><h2 id="employee-name"></h2></div><span id="mode" class="pill"></span></div>
 <div class="card"><label for="site">Assigned worksite</label><select id="site"></select><p id="site-detail" class="hint"></p><div class="clock" id="clock"></div><p class="hint center">Location is requested only when you submit a punch.</p><div class="buttons"><button data-attendance="IN" class="primary">Clock In</button><button data-attendance="OUT" class="primary danger">Clock Out</button><button data-attendance="LUNCH_START">Start Lunch</button><button data-attendance="LUNCH_END">End Lunch</button><button data-attendance="PAID_BREAK_START">Start Paid Break</button><button data-attendance="PAID_BREAK_END">End Paid Break</button></div></div>
 <div class="card"><div class="heading"><h2>Recent punches</h2><button id="refresh">Refresh</button></div><div id="history" class="history"></div></div>
