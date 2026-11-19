@@ -48,7 +48,7 @@ test('API distinguishes missing configuration from missing Access credentials',a
 test('a verified header or application cookie reaches D1 provisioning',async t=>{
  t.mock.method(globalThis,'fetch',async (url,options)=>{
   assert.equal(url,issuer+'/cdn-cgi/access/certs');
-  assert.equal(options.redirect,'error');
+  assert.equal(options.redirect,'manual');
   return Response.json({keys:[signingKey]});
  });
  const DB=staffDatabase({id:'employee-id',display_name:'Preview Employee',role:'employee'});
@@ -84,8 +84,22 @@ test('credentials fail closed on invalid signature, claims, algorithm or ambiguo
 });
 
 test('key service failures are reported separately and skip employee lookup',async t=>{
- t.mock.method(globalThis,'fetch',async()=>Response.json({keys:{}}));
- await assertApiError({...config,DB:{}},{'Cf-Access-Jwt-Assertion':token()},503,'ACCESS_VERIFICATION_UNAVAILABLE');
+ const redirect=Response.json({keys:[signingKey]},{
+  status:302,headers:{Location:'https://other.example.test/certs'}
+ });
+ const readRedirectBody=t.mock.method(redirect,'json');
+ const fetchKeys=t.mock.method(globalThis,'fetch',async()=>redirect);
+ const headers={'Cf-Access-Jwt-Assertion':token()};
+ const env={...config,DB:{}};
+ await assertApiError(env,headers,503,'ACCESS_VERIFICATION_UNAVAILABLE');
+ assert.equal(fetchKeys.mock.callCount(),1);
+ assert.equal(readRedirectBody.mock.callCount(),0);
+
+ fetchKeys.mock.mockImplementation(async()=>new Response(null,{status:502}));
+ await assertApiError(env,headers,503,'ACCESS_VERIFICATION_UNAVAILABLE');
+
+ fetchKeys.mock.mockImplementation(async()=>Response.json({keys:{}}));
+ await assertApiError(env,headers,503,'ACCESS_VERIFICATION_UNAVAILABLE');
 });
 
 test('cookie-authenticated writes still require the application origin',async()=>{

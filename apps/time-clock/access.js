@@ -49,8 +49,9 @@ export async function verifyAccess(request, env) {
   let keys;
   const unavailable = { error: 'ACCESS_VERIFICATION_UNAVAILABLE', status: 503 };
   try {
-    const res = await fetch(issuer + '/cdn-cgi/access/certs', { redirect: 'error' });
-    if (!res.ok) {
+    // Workers require manual redirect handling to keep signing keys on the configured issuer.
+    const res = await fetch(issuer + '/cdn-cgi/access/certs', { redirect: 'manual' });
+    if (res.status !== 200) {
       console.error('ACCESS_CERT_FETCH_FAILED', { status: res.status, redirected: res.redirected });
       return unavailable;
     }
