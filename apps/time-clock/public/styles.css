@@ -35,3 +35,51 @@ button:not(.settings-toggle):not(.nav-item):has(>.material-symbols-rounded){disp
 .icon-heading{display:flex;align-items:center;gap:8px}
 .icon-heading .material-symbols-rounded{font-size:21px;color:#087c7d}
 @media(max-width:380px){.buttons button:has(>.material-symbols-rounded){gap:5px;padding:10px 6px;font-size:11px}.buttons button>.material-symbols-rounded{font-size:18px}}
+
+
+/* Compact Request, Timecard, Settings and header notification affordances. */
+.app-header{z-index:15}
+.notifications-toggle{position:absolute;left:10px;top:10px;width:46px;height:46px;min-height:46px;padding:9px;border:0;border-radius:12px;background:transparent;color:#10253c;display:grid;place-items:center}
+.notifications-toggle .material-symbols-rounded{font-size:27px}
+.notifications-toggle[aria-expanded="true"]{background:#e5f3f2;color:#087c7d}
+.notifications-toggle[hidden],.notifications-panel[hidden]{display:none!important}
+.notifications-panel{position:absolute;z-index:30;left:max(12px,calc((100% - 740px)/2 + 16px));right:max(12px,calc((100% - 740px)/2 + 16px));top:67px;max-height:min(55vh,420px);overflow-y:auto;background:#fff;border:1px solid #dbe3e9;border-radius:14px;padding:17px;box-shadow:0 12px 30px #10253c24}
+.notifications-panel .heading{margin-bottom:12px}.notifications-panel h2{font-size:16px;margin:0}
+.icon-button{width:44px;height:44px;min-height:44px;display:inline-grid!important;place-items:center!important;padding:8px;border:1px solid #dbe3e9;border-radius:11px;background:#fff;flex-shrink:0}
+.icon-button .material-symbols-rounded{font-size:23px}
+#recent-screen>.screen-intro{margin:20px 0 14px}
+#recent-screen .card{margin-top:10px}
+#recent-screen .card form,#settings-screen form{display:flex;flex-direction:column;gap:3px;margin:16px 0 22px}
+#recent-screen form button,#settings-screen form button{margin-top:17px;min-height:48px}
+#recent-screen .card h2+ .hint{margin-top:12px}
+#recent-screen #my-corrections{margin-top:16px}
+.screen-toolbar{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:18px 1px 8px}
+.screen-toolbar h2{font-size:20px;margin:8px 0 2px;line-height:1.25}
+.screen-toolbar .hint{margin:5px 0 0}
+#timecard-screen .card{margin-top:10px}
+.timecard-overview{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.timecard-overview .metric{border-radius:12px;border:1px solid #dfe6ec;background:#f7fafc;padding:16px 12px;display:flex;flex-direction:column;gap:7px}
+.timecard-overview .metric-label{color:#617387;font-size:12px}
+.timecard-overview .metric strong{font-size:22px;letter-spacing:-.4px}
+.timecard-overview .timecard-disclaimer{grid-column:1/-1;margin:5px 0}
+#attendance-history{margin-top:18px}
+#settings-screen{padding-top:5px}
+#settings-screen>.card{margin-top:12px}
+#settings-screen #supervisor-panel,#settings-screen #admin{padding:8px 12px}
+.settings-section{border-bottom:1px solid #e3eaf0}
+.settings-section:last-child{border-bottom:0}
+.settings-section summary{display:flex;align-items:center;gap:10px;list-style:none;font-size:14px;font-weight:750;min-height:58px;padding:12px 6px;cursor:pointer}
+.settings-section summary::-webkit-details-marker{display:none}
+.settings-section summary>.material-symbols-rounded:first-child{font-size:22px;color:#087c7d}
+.settings-section summary>span:nth-child(2){flex:1;min-width:0}
+.settings-section summary>.material-symbols-rounded:last-child{transition:transform .15s ease}
+.settings-section[open] summary>.material-symbols-rounded:last-child{transform:rotate(180deg)}
+.settings-fields{padding:3px 7px 22px}
+.settings-fields form>label{margin-top:13px}
+.settings-fields input,.settings-fields select{margin-bottom:5px}
+.settings-fields .heading{margin-top:20px}
+.settings-fields h2{margin-top:20px}
+#settings-screen .account-card .heading{gap:8px}
+#settings-screen .account-card .icon-heading{font-size:15px;min-width:0}
+#settings-screen .account-card>.hint{margin:13px 0 3px;line-height:1.6}
+@media(max-width:420px){.screen-toolbar h2{font-size:18px}.notifications-panel{left:9px;right:9px}.settings-fields{padding:2px 1px 20px}.timecard-overview .metric strong{font-size:20px}}
