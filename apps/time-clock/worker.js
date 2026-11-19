@@ -44,7 +44,11 @@ export default {async fetch(request,env){
  }
  if(!path.startsWith('/api/'))return env.ASSETS?env.ASSETS.fetch(request):error('ASSETS_NOT_CONFIGURED',503);
  if(!env.DB)return error('DATABASE_NOT_CONFIGURED',503);
- const sub=await identity(request,env);if(!sub)return error('SIGN_IN_REQUIRED',401);
+ // Separate missing Worker configuration from absent or invalid Access credentials.
+ // Neither case grants access; no token claims or credentials are returned to clients.
+ if(!env.ACCESS_ISSUER||!env.ACCESS_AUDIENCE)return error('ACCESS_CONFIGURATION_REQUIRED',503);
+ if(!request.headers.get('Cf-Access-Jwt-Assertion'))return error('ACCESS_TOKEN_NOT_FORWARDED',401);
+ const sub=await identity(request,env);if(!sub)return error('ACCESS_TOKEN_INVALID_OR_EXPIRED',401);
  const employee=await env.DB.prepare('SELECT * FROM employees WHERE identity_sub=? AND active=1').bind(sub).first();
  if(!employee)return error('ACCOUNT_NOT_PROVISIONED',403);
  if(path==='/'&&request.method==='GET')return new Response('IRM Time Clock API. Serve the PWA from an Access-protected static origin.',{headers:{'content-type':'text/plain','cache-control':'no-store'}});
