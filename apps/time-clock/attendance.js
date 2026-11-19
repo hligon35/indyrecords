@@ -1,5 +1,6 @@
 import {validateEventType,totalize,estimateWeekly} from '../../packages/time-clock/timecard.js';
 import {verifyGeofence} from '../../packages/time-clock/policy.js';
+import {checkPunchLocation,previewLocationBypass} from '../../packages/time-clock/preview-policy.js';
 import {sendTransactional} from './resend.js';
 const ok=(data,status=200)=>new Response(JSON.stringify(data),{status,headers:{'content-type':'application/json','cache-control':'no-store'}});
 const fail=(error,status=400)=>ok({error},status);
@@ -21,7 +22,7 @@ export async function attendanceRoute(request,env,actor,path){
  if(!path.startsWith('/api/attendance/'))return null;
  const db=env.DB,method=request.method;
  const role=actor.role==='admin'?'admin':await supervisor(db,actor)?'supervisor':'employee';
- if(path==='/api/attendance/profile'&&method==='GET')return ok({role,emailConfigured:!!actor.email,emailEnabled:env.EMAIL_ENABLED==='true'});
+ if(path==='/api/attendance/profile'&&method==='GET')return ok({role,emailConfigured:!!actor.email,emailEnabled:env.EMAIL_ENABLED==='true',previewLocationBypass:previewLocationBypass(env)});
  if(path==='/api/attendance/notifications'&&method==='GET'){
   const r=await db.prepare('SELECT id,event_kind,detail,created_at,read_at,email_state FROM attendance_notifications WHERE employee_id=? ORDER BY created_at DESC LIMIT 60').bind(actor.id).all();
   return ok({items:r.results||[]});
@@ -79,12 +80,12 @@ export async function attendanceRoute(request,env,actor,path){
   if(existing)return existing.event_type===data.type?ok({event:existing,duplicate:true}):fail('IDEMPOTENCY_CONFLICT',409);
   const site=await db.prepare('SELECT s.* FROM worksites s JOIN assignments a ON a.worksite_id=s.id WHERE a.employee_id=? AND s.id=? AND s.enabled=1').bind(actor.id,data.worksiteId).first();
   if(!site)return fail('WORKSITE_NOT_ASSIGNED',403);
-  const result=verifyGeofence({site,location:data.location});
+  const result=checkPunchLocation({site,location:data.location,env,verify:verifyGeofence});
   if(!result.allowed){await audit(db,actor.id,'ATTENDANCE_GEOFENCE_REJECTED',site.id,{reason:result.reason,distanceFeet:result.distanceFeet??null,accuracyFeet:result.accuracyFeet??null,checkedAt:new Date().toISOString()});return ok({error:result.reason,mayRequestCorrection:true},403)}
   const id=uuid(),occurred=new Date().toISOString();
   await db.prepare('INSERT INTO attendance_events(id,employee_id,worksite_id,event_type,occurred_at,client_request_id,geofence_result,distance_feet,accuracy_feet) VALUES(?,?,?,?,?,?,?,?,?)').bind(id,actor.id,site.id,data.type,occurred,data.requestId,result.reason,result.distanceFeet??null,result.accuracyFeet??null).run();
   await audit(db,actor.id,'ATTENDANCE_EVENT_SIMULATED',id,{type:data.type,worksiteId:site.id});
-  return ok({event:{id,type:data.type,occurred_at:occurred,provider_state:'SIMULATED'},notice:'SIMULATED — no ADP payroll submission'},201);
+  return ok({event:{id,type:data.type,occurred_at:occurred,provider_state:'SIMULATED'},notice:result.simulated?'PREVIEW LOCATION BYPASS — SIMULATED, NOT PAYROLL':'SIMULATED — no ADP payroll submission'},201);
  }
  if(path==='/api/attendance/events'&&method==='GET'){
   const target=new URL(request.url).searchParams.get('employeeId')||actor.id;
