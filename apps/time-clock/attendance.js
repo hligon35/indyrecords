@@ -109,10 +109,11 @@ export async function attendanceRoute(request,env,actor,path){
   const totals=totalize(records,from,to);
   // Weekly overtime must not be computed against 80 hours across a whole pay
   // period. Split the two weeks at the seventh local calendar-day boundary.
-  const midpointDate=new Date(fromMs+7*DAY_MS);
-  const localParts=new Intl.DateTimeFormat('en-US',{timeZone:'America/Indiana/Indianapolis',year:'numeric',month:'numeric',day:'numeric'}).formatToParts(midpointDate);
-  const part=kind=>Number(localParts.find(value=>value.type===kind)?.value);
-  const mDay=Date.UTC(part('year'),part('month')-1,part('day'));
+  // Derive the boundary by local calendar days, not 168 elapsed hours;
+  // otherwise a daylight-saving transition shifts the second week.
+  const periodStartParts=new Intl.DateTimeFormat('en-US',{timeZone:'America/Indiana/Indianapolis',year:'numeric',month:'numeric',day:'numeric'}).formatToParts(new Date(fromMs+12*3600000));
+  const part=kind=>Number(periodStartParts.find(value=>value.type===kind)?.value);
+  const mDay=Date.UTC(part('year'),part('month')-1,part('day'))+7*DAY_MS;
   const offsetPart=new Intl.DateTimeFormat('en-US',{timeZone:'America/Indiana/Indianapolis',timeZoneName:'shortOffset'}).formatToParts(new Date(mDay+12*3600000)).find(value=>value.type==='timeZoneName')?.value||'';
   const match=/^GMT([+-])(\d{1,2})(?::(\d{2}))?$/.exec(offsetPart);
   if(!match)return fail('PAY_PERIOD_TIMEZONE_UNAVAILABLE',503);
