@@ -20,6 +20,8 @@ APP_ENV = "preview"
 EMAIL_ENABLED = "false"
 CLOCK_TESTING_ENABLED = "true"
 PREVIEW_DISABLE_GEOFENCE = "true"
+ACCESS_ISSUER = "https://getsparqd-server.cloudflareaccess.com"
+ACCESS_AUDIENCE = "4d18ac57daf86991af2a46cd706aebc6fd4bfe8d4b911d5405a6aaa549cb0bf5"
 # Do not enable until root From domain alphazonelabs.com is verified in Resend.
 # Requested DNS/sending subdomain is mail.alphazonelabs.com, but the From address uses alphazonelabs.com.
 
