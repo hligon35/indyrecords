@@ -182,7 +182,7 @@ function localDateParts(date){
 function easternMidnight(day){
  const midday=new Date(Date.UTC(day.getUTCFullYear(),day.getUTCMonth(),day.getUTCDate(),12));
  const value=new Intl.DateTimeFormat('en-US',{timeZone:'America/Indiana/Indianapolis',timeZoneName:'shortOffset'}).formatToParts(midday).find(p=>p.type==='timeZoneName')?.value||'';
- const m=/^GMT([+-])(\\d{1,2})(?::(\\d{2}))?$/.exec(value);
+ const m=/^GMT([+-])(\d{1,2})(?::(\d{2}))?$/.exec(value);
  if(!m)throw Error('Unable to resolve Indianapolis timezone offset');
  const minutes=(m[1]==='+'?1:-1)*(Number(m[2])*60+Number(m[3]||0));
  return new Date(Date.UTC(day.getUTCFullYear(),day.getUTCMonth(),day.getUTCDate())-minutes*60000);
