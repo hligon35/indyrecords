@@ -207,7 +207,7 @@ async function loadTimecard(){
  const hours=x.totals.paidHours.toFixed(2);
  const lunch=(x.totals.unpaidLunchMinutes/60).toFixed(2);
  const overtime=(x.estimates.overtimeMinutes/60).toFixed(2);
- const summary=$('timecard-summary');summary.replaceChildren();
+ const summary=$('timecard-summary');summary.hidden=false;summary.replaceChildren();
  const metrics=[['Paid hours',hours],['Unpaid lunch',lunch+' hr'],['Potential overtime',overtime+' hr']];
  for(const [label,value] of metrics){
   const card=document.createElement('div');card.className='metric';
