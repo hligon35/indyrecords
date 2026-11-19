@@ -25,6 +25,6 @@
   },
   "devDependencies": {
     "expo-doctor": "^1.17.0",
-    "eas-cli": "^16.0.0"
+    "eas-cli": "^27.10.0"
   }
 }
