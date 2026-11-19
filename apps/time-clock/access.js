@@ -50,10 +50,19 @@ export async function verifyAccess(request, env) {
   const unavailable = { error: 'ACCESS_VERIFICATION_UNAVAILABLE', status: 503 };
   try {
     const res = await fetch(issuer + '/cdn-cgi/access/certs', { redirect: 'error' });
-    if (!res.ok) return unavailable;
-    ({ keys } = await res.json());
-    if (!Array.isArray(keys)) return unavailable;
-  } catch {
+    if (!res.ok) {
+      console.error('ACCESS_CERT_FETCH_FAILED', { status: res.status, redirected: res.redirected });
+      return unavailable;
+    }
+    const payload = await res.json();
+    keys = payload?.keys;
+    if (!Array.isArray(keys)) {
+      console.error('ACCESS_CERT_KEYS_INVALID', { keyArrayPresent: Array.isArray(keys) });
+      return unavailable;
+    }
+  } catch (err) {
+    // Never log the Access JWT, cookies, response body or signing-key material.
+    console.error('ACCESS_CERT_FETCH_EXCEPTION', { name: String(err?.name || 'Error'), message: String(err?.message || 'Unknown error').slice(0, 240) });
     return unavailable;
   }
   const key = keys.find(key => key?.kid === header.kid && key.kty === 'RSA');
