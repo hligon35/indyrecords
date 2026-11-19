@@ -45,3 +45,14 @@ Do not run these until Cloudflare Access and the D1 binding are configured. The 
 - No live Cloudflare deployment or migration has been executed by this implementation. The worker and app have not been tested against a real identity provider, physical Android kiosk or actual ADP environment.
 - Tests have been added under `tests/time-clock-attendance.test.js` and `tests/time-clock-resend.test.js` but successful execution has not been verified. Run `npm ci && npm test && npm run build:web` at repo root and `npx wrangler deploy --dry-run --config apps/time-clock/wrangler.toml` only in an authorized development environment.
 - Still incomplete: managed identity provider selection/configuration; email-password sign-in, verified invitations/activation, kiosk ID/PIN and trusted fixed-device presence, offline encrypted request queue, ADP adapter/reconciliation, actual payroll schedule, device test acceptance, reporting accuracy, notification retry/delivery audit policies, archival/retention and production security review.
+
+## Standalone iOS preview builds and simulated location testing (November 19, 2026)
+
+A **separate Expo iOS client** now exists at `apps/time-clock-ios/`. Do not use `apps/mobile` to build it. Repository root convenience scripts:
+- `npm run clock:ios:doctor`
+- `npm run clock:ios:preview`
+- `npm run clock:ios:ota:preview`
+
+Before EAS build/OTA, install iOS app dependencies, verify SDK-compatible versions via `npx expo install --fix`, configure `EXPO_PUBLIC_CLOCK_URL` with a deployed and Access-protected HTTPS time-clock origin, create the separate EAS project with `eas init` and supply its actual `EAS_PROJECT_ID`. Configure Apple Developer provisioning and internal testers. Expo OTA changes JS/assets only and requires an installed native app with matching runtime. Nothing has been built or deployed from this session; build validation is pending.
+
+**Preview location bypass:** Preview Wrangler config uses `APP_ENV=preview`, `ADP_MODE=simulated`, `CLOCK_TESTING_ENABLED=true` and `PREVIEW_DISABLE_GEOFENCE=true`. All four server-controlled values must match to bypass location checks. Both the original punch path and the newer attendance path use the same policy. Bypass applies only to enabled worksites and emits simulated/non-payroll status; it cannot be requested by a client. Set `PREVIEW_DISABLE_GEOFENCE=false` to test real GPS/geofencing. In production or ADP gateway mode the bypass automatically fails closed. Do not deploy this preview configuration as payroll production.
