@@ -96,15 +96,40 @@ export async function attendanceRoute(request,env,actor,path){
  if(path==='/api/attendance/timecard'&&method==='GET'){
   const url=new URL(request.url),target=url.searchParams.get('employeeId')||actor.id;
   if(target!==actor.id&&!await canReview(db,actor,target))return fail('FORBIDDEN',403);
-  // A calendar week boundary remains unconfirmed; client must select explicit 7-day interval.
+  // Two-week pay-period requests. The payroll workweek boundary is still pending
+  // employer confirmation; all overtime estimates therefore remain preliminary.
+  // Allow an hour either side of 14 days for Indianapolis DST transitions.
   const from=url.searchParams.get('from'),to=url.searchParams.get('to');
-  if(!iso(from)||!iso(to)||Date.parse(to)-Date.parse(from)!==7*86400000)return fail('SEVEN_DAY_RANGE_REQUIRED');
+  const fromMs=Date.parse(from),toMs=Date.parse(to),duration=toMs-fromMs;
+  const DAY_MS=86400000;
+  if(!iso(from)||!iso(to)||!Number.isFinite(duration)||
+     Math.abs(duration-14*DAY_MS)>3600000)return fail('FOURTEEN_DAY_RANGE_REQUIRED');
   const events=await db.prepare('SELECT event_type,occurred_at FROM attendance_events WHERE employee_id=? AND occurred_at<? ORDER BY occurred_at DESC LIMIT 2000').bind(target,to).all();
-  const totals=totalize(events.results||[],from,to);
+  const records=events.results||[];
+  const totals=totalize(records,from,to);
+  // Weekly overtime must not be computed against 80 hours across a whole pay
+  // period. Split the two weeks at the seventh local calendar-day boundary.
+  const midpointDate=new Date(fromMs+7*DAY_MS);
+  const localParts=new Intl.DateTimeFormat('en-US',{timeZone:'America/Indiana/Indianapolis',year:'numeric',month:'numeric',day:'numeric'}).formatToParts(midpointDate);
+  const part=kind=>Number(localParts.find(value=>value.type===kind)?.value);
+  const mDay=Date.UTC(part('year'),part('month')-1,part('day'));
+  const offsetPart=new Intl.DateTimeFormat('en-US',{timeZone:'America/Indiana/Indianapolis',timeZoneName:'shortOffset'}).formatToParts(new Date(mDay+12*3600000)).find(value=>value.type==='timeZoneName')?.value||'';
+  const match=/^GMT([+-])(\\d{1,2})(?::(\\d{2}))?$/.exec(offsetPart);
+  if(!match)return fail('PAY_PERIOD_TIMEZONE_UNAVAILABLE',503);
+  const minuteOffset=(match[1]==='+'?1:-1)*(Number(match[2])*60+Number(match[3]||0));
+  const midpoint=new Date(mDay-minuteOffset*60000).toISOString();
+  if(Date.parse(midpoint)<=fromMs||Date.parse(midpoint)>=toMs)return fail('INVALID_PAY_PERIOD');
+  const weekly=[totalize(records,from,midpoint),totalize(records,midpoint,to)];
   const cls=await db.prepare('SELECT classification FROM employment_classifications WHERE employee_id=? AND effective_at<=? ORDER BY effective_at DESC LIMIT 1').bind(target,to).first();
-  // Never expose wage rates to supervisors merely because they may review attendance.
   const rate=target===actor.id||role==='admin'?await db.prepare('SELECT hourly_cents FROM pay_rate_history WHERE employee_id=? AND effective_at<=? ORDER BY effective_at DESC LIMIT 1').bind(target,to).first():null;
-  return ok({from,to,totals,estimates:estimateWeekly(totals.paidMinutes,{classification:cls?.classification||'UNKNOWN',hourlyCents:rate?.hourly_cents??null}),officialPayroll:false,workweekBoundaryUnverified:true});
+  const weeklyEstimates=weekly.map(week=>estimateWeekly(week.paidMinutes,{classification:cls?.classification||'UNKNOWN',hourlyCents:rate?.hourly_cents??null}));
+  const gross=weeklyEstimates.every(week=>week.estimatedGrossCents!==null)?weeklyEstimates.reduce((sum,week)=>sum+week.estimatedGrossCents,0):null;
+  return ok({from,to,totals,weekly,estimates:{
+    overtimeMinutes:weeklyEstimates.reduce((sum,week)=>sum+week.overtimeMinutes,0),
+    regularMinutes:weeklyEstimates.reduce((sum,week)=>sum+week.regularMinutes,0),
+    estimatedGrossCents:gross,classification:cls?.classification||'UNKNOWN',
+    unofficial:true
+  },officialPayroll:false,workweekBoundaryUnverified:true});
  }
  if(path==='/api/attendance/admin/classification'&&method==='POST'){
   if(role!=='admin')return fail('ADMIN_REQUIRED',403);
