@@ -1,5 +1,5 @@
 import React from 'react';
-import {View,Text,ActivityIndicator,StyleSheet,Linking,Platform,Pressable} from 'react-native';
+import {View,Text,ActivityIndicator,StyleSheet,Linking,Platform,Pressable,AppState} from 'react-native';
 import {StatusBar} from 'expo-status-bar';
 import Constants from 'expo-constants';
 import {WebView} from 'react-native-webview';
@@ -22,6 +22,19 @@ export default function App(){
  const [reload,setReload]=React.useState(0);
  const [lastUrl,setLastUrl]=React.useState(url||'');
  const ref=React.useRef(null);
+ const appState=React.useRef(AppState.currentState);
+ const activeAgain=React.useCallback(()=>{
+  // Keep the authenticated WebView and its cookies; refresh only page data.
+  ref.current?.injectJavaScript("window.dispatchEvent(new Event('irm-clock-resume'));true;");
+ },[]);
+ React.useEffect(()=>{
+  const subscription=AppState.addEventListener('change',next=>{
+   const previous=appState.current;
+   appState.current=next;
+   if(previous.match(/inactive|background/)&&next==='active'&&configured&&!error)activeAgain();
+  });
+  return ()=>subscription.remove();
+ },[activeAgain,error]);
  React.useEffect(()=>{
   if(!configured||!loading||error)return;
   const timer=setTimeout(()=>setError('The preview did not finish loading. Check the URL in Safari, Cloudflare deployment and Access login.'),25000);
