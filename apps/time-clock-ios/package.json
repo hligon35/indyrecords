@@ -7,12 +7,13 @@
     "start": "expo start",
     "start:ios": "expo start --ios",
     "doctor": "expo-doctor",
-    "build:ios:preview": "npm run verify:icon && eas build --platform ios --profile preview",
-    "build:ios:development": "npm run verify:icon && eas build --platform ios --profile development",
-    "build:ios:production": "npm run verify:icon && eas build --platform ios --profile production",
+    "build:ios:preview": "npm run prepare:icon && npm run verify:icon && eas build --platform ios --profile preview",
+    "build:ios:development": "npm run prepare:icon && npm run verify:icon && eas build --platform ios --profile development",
+    "build:ios:production": "npm run prepare:icon && npm run verify:icon && eas build --platform ios --profile production",
     "ota:preview": "npm run verify:icon && eas update --channel preview --platform ios --message \"IRM Time Clock preview update\"",
     "ota:production": "npm run verify:icon && eas update --channel production --platform ios --message \"IRM Time Clock production update\"",
-    "verify:icon": "node scripts/verify-icon.cjs"
+    "verify:icon": "node scripts/verify-icon.cjs",
+    "prepare:icon": "node scripts/prepare-icon.cjs"
   },
   "dependencies": {
     "expo": "~54.0.0",
@@ -25,6 +26,7 @@
     "react-native-webview": "13.15.0"
   },
   "devDependencies": {
-    "expo-doctor": "^1.17.0"
+    "expo-doctor": "^1.17.0",
+    "sharp": "^0.33.5"
   }
 }
