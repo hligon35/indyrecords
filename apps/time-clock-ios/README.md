@@ -25,3 +25,11 @@ npm --prefix apps/time-clock-ios run ota:preview
 ```
 
 The existing IRM RMS `build:ios:dev` script builds **RMS**, not this standalone Time Clock client.
+
+## Branded IRM icon
+
+The iOS app config now uses `./assets/irm-time-clock-icon.png` for both the Expo app icon and iOS icon. The 1024×1024 PNG was generated separately and **must be copied into the Git repository**, because the connected GitHub text-file API cannot upload binary image bytes. The image package is provided in the ChatGPT conversation.
+
+Extract the package so your local repository contains `apps/time-clock-ios/assets/irm-time-clock-icon.png`, or save the standalone PNG directly to that location. From `apps/time-clock-ios`, run `npm run verify:icon` and `npx expo config --type public` before building. Then commit the binary image with `git add apps/time-clock-ios/assets/irm-time-clock-icon.png` from the repository root and push it to `main`.
+
+Changing a native iOS app icon requires a fresh `eas build --platform ios --profile preview` and reinstalling that build. An EAS OTA update alone **will not** replace the installed iOS home-screen icon.
