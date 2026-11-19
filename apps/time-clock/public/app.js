@@ -57,6 +57,7 @@ async function punch(type){
  }
 }
 function clearAccountDetails(){
+ $('greeting-name').textContent='User!';
  sites=[];testLocationBypass=false;
  for(const id of ['site','site-detail','employee-name','history','attendance-history','notifications-list','my-corrections','correction-list','employee-list','timecard-summary'])$(id).replaceChildren();
  $('timecard-summary').hidden=true;
@@ -109,6 +110,9 @@ async function refreshAccount(){
    if(sessionFailure)throw sessionFailure.reason;
    if(worksites.status==='rejected')throw worksites.reason;
    $('employee-name').textContent=me.name;
+   $('greeting-name').textContent=(String(me.name||'').trim().split(/\s+/)[0]||'User')+'!';
+   updateGreeting();
+   $('payroll-status').textContent=me.mode==='gateway'?'Attendance is connected to the approved payroll gateway.':'Attendance entries are not transmitted to payroll.';
    $('mode').textContent=me.mode==='gateway'?'Payroll integration':'Simulation only';
    $('admin').hidden=me.role!=='admin';
    $('app').hidden=false;
@@ -211,5 +215,32 @@ $('pay-rate-form').addEventListener('submit',async e=>{
  try{await api('/attendance/admin/rate',{method:'POST',body:JSON.stringify({employeeId:$('rate-employee').value,hourlyCents:cents,effectiveAt:new Date().toISOString()})});e.target.reset();note('Preview pay rate recorded with an effective date.','success')}catch(err){note(err.message,'error')}
 });
 
-function tick(){$('clock').textContent=new Date().toLocaleTimeString([],{hour:'numeric',minute:'2-digit',second:'2-digit'})}
+function updateGreeting(){
+ const hour=new Date().getHours();
+ $('greeting-time').textContent=hour<12?'Good Morning,':hour<17?'Good Afternoon,':'Good Evening,';
+}
+function tick(){$('clock').textContent=new Date().toLocaleTimeString([],{hour:'numeric',minute:'2-digit',second:'2-digit'});updateGreeting()}
+const screens=['clock','recent','timecard','settings'];
+let currentScreen='clock',lastMainScreen='clock';
+function showScreen(name){
+ if(!screens.includes(name))return;
+ if(name==='settings'){
+  lastMainScreen=currentScreen==='settings'?lastMainScreen:currentScreen;
+ }else{lastMainScreen=name}
+ currentScreen=name;
+ screens.forEach(screen=>{$(screen+'-screen').hidden=screen!==name});
+ $('screen-title').textContent={clock:'Clock',recent:'Recent',timecard:'Timecard',settings:'Settings'}[name];
+ $('settings-toggle').setAttribute('aria-expanded',String(name==='settings'));
+ $('settings-toggle').setAttribute('aria-label',name==='settings'?'Return to '+lastMainScreen:'Open settings');
+ document.querySelectorAll('[data-screen]').forEach(button=>{
+  const active=button.dataset.screen===name;
+  button.classList.toggle('active',active);
+  if(active)button.setAttribute('aria-current','page');else button.removeAttribute('aria-current');
+ });
+ if(name==='timecard'&&me&&!refreshing)loadTimecard().catch(e=>note(e.message,'error'));
+ window.scrollTo({top:0,behavior:'instant'});
+}
+$('settings-toggle').addEventListener('click',()=>showScreen(currentScreen==='settings'?lastMainScreen:'settings'));
+$('settings-refresh').addEventListener('click',()=>refreshAccount());
+document.querySelectorAll('[data-screen]').forEach(button=>button.addEventListener('click',()=>showScreen(button.dataset.screen)));
 tick();setInterval(tick,1000);refreshAccount();
