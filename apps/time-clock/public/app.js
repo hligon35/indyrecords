@@ -1,8 +1,8 @@
-const $=id=>document.getElementById(id);let me=null,sites=[];let busy=false;let testLocationBypass=false;
+const $=id=>document.getElementById(id);let me=null,sites=[];let busy=false;let testLocationBypass=false;let refreshing=null;let lastRefreshAt=0;
 const note=(message,type='')=>{$('notice').textContent=message;$('notice').className='notice '+type;};
 const clean=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 async function api(path,options={}){
- const res=await fetch('/api'+path,{...options,credentials:'same-origin',headers:{'content-type':'application/json',...options.headers}});
+ const res=await fetch('/api'+path,{...options,cache:'no-store',credentials:'same-origin',headers:{'content-type':'application/json',...options.headers}});
  let json;try{json=await res.json()}catch{throw Error('Invalid server response')}
  if(!res.ok)throw Error(json.error||'Request failed');
  return json;
@@ -42,16 +42,53 @@ async function punch(type){
   await Promise.all([history(),attendanceHistory()]);
  }catch(e){note(e.message,'error')}finally{busy=false;document.querySelectorAll('[data-attendance]').forEach(b=>b.disabled=false)}
 }
-async function boot(){
- try{
-  me=await api('/me');$('employee-name').textContent=me.name;$('mode').textContent=me.mode==='gateway'?'Payroll integration':'Simulation only';
-  $('app').hidden=false;$('admin').hidden=me.role!=='admin';$('connection').textContent='Signed in';
-  const profile=await api('/attendance/profile');testLocationBypass=Boolean(profile.previewLocationBypass);$('supervisor-panel').hidden=!['admin','supervisor'].includes(profile.role);
-  await Promise.all([loadSites(),history(),attendanceHistory(),notifications(),corrections()]);
-  if(me.role==='admin')await employees();
-  note(testLocationBypass?'PREVIEW TEST: LOCATION RESTRICTIONS DISABLED. All events are simulated; not valid for payroll.':me.mode==='gateway'?'Connected to the approved time-clock gateway.':'Simulation mode. Punches are not sent to ADP.',testLocationBypass?'error':'');
- }catch(e){note('Access unavailable: '+e.message+'. Sign in through the approved Cloudflare Access application and ask your administrator to provision your employee account.','error')}
+async function refreshAccount(){
+ if(refreshing)return refreshing;
+ refreshing=(async()=>{
+  try{
+   const account=await api('/me');
+   const priorIdentity=me?.id;
+   me=account;
+   if(priorIdentity&&priorIdentity!==me.id){
+    // Never show one employee's cached data to a different signed-in identity.
+    $('history').replaceChildren();$('attendance-history').replaceChildren();
+    $('notifications-list').replaceChildren();$('my-corrections').replaceChildren();
+    $('correction-list').replaceChildren();$('employee-list').replaceChildren();
+    $('timecard-summary').hidden=true;
+   }
+   $('employee-name').textContent=me.name;
+   $('mode').textContent=me.mode==='gateway'?'Payroll integration':'Simulation only';
+   $('app').hidden=false;
+   $('admin').hidden=me.role!=='admin';
+   $('connection').textContent='Signed in';
+   const profile=await api('/attendance/profile');
+   testLocationBypass=Boolean(profile.previewLocationBypass);
+   $('supervisor-panel').hidden=!['admin','supervisor'].includes(profile.role);
+   await Promise.all([loadSites(),history(),attendanceHistory(),notifications(),corrections(),...(me.role==='admin'?[employees()]:[])]);
+   lastRefreshAt=Date.now();
+   note(testLocationBypass?'PREVIEW TEST: LOCATION RESTRICTIONS DISABLED. All events are simulated; not valid for payroll.':me.mode==='gateway'?'Connected to the approved time-clock gateway.':'Simulation mode. Punches are not sent to ADP.',testLocationBypass?'error':'');
+  }catch(e){
+   if(['ACCESS_TOKEN_NOT_FORWARDED','ACCESS_TOKEN_INVALID_OR_EXPIRED','SIGN_IN_REQUIRED','ACCOUNT_NOT_PROVISIONED','ACCESS_CONFIGURATION_REQUIRED'].includes(e.message)){
+    me=null;sites=[];testLocationBypass=false;
+    $('app').hidden=true;
+    $('admin').hidden=true;
+    $('supervisor-panel').hidden=true;
+    $('connection').textContent='Sign in required';
+   }
+   note('Access unavailable: '+e.message+'. Sign in through the approved Cloudflare Access application and ask your administrator to provision your employee account.','error');
+  }
+ })();
+ try{await refreshing}finally{refreshing=null}
 }
+function resumeClock(){
+ // Do not interrupt an attendance submission; its completion already refreshes activity.
+ if(busy||document.visibilityState==='hidden'||Date.now()-lastRefreshAt<1000)return;
+ refreshAccount();
+}
+window.addEventListener('irm-clock-resume',resumeClock);
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')resumeClock()});
+window.addEventListener('pageshow',event=>{if(event.persisted)resumeClock()});
+
 $('site').addEventListener('change',showSite);
 $('radius').addEventListener('input',()=>{$('radius-output').textContent=$('radius').value+' feet'});
 document.querySelectorAll('[data-attendance]').forEach(b=>b.addEventListener('click',()=>punch(b.dataset.attendance)));
@@ -127,4 +164,4 @@ $('pay-rate-form').addEventListener('submit',async e=>{
 });
 
 function tick(){$('clock').textContent=new Date().toLocaleTimeString([],{hour:'numeric',minute:'2-digit',second:'2-digit'})}
-tick();setInterval(tick,1000);boot();
+tick();setInterval(tick,1000);refreshAccount();
