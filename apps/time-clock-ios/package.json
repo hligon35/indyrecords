@@ -7,11 +7,12 @@
     "start": "expo start",
     "start:ios": "expo start --ios",
     "doctor": "expo-doctor",
-    "build:ios:preview": "eas build --platform ios --profile preview",
-    "build:ios:development": "eas build --platform ios --profile development",
-    "build:ios:production": "eas build --platform ios --profile production",
-    "ota:preview": "eas update --channel preview --platform ios --message \"IRM Time Clock preview update\"",
-    "ota:production": "eas update --channel production --platform ios --message \"IRM Time Clock production update\""
+    "build:ios:preview": "npm run verify:icon && eas build --platform ios --profile preview",
+    "build:ios:development": "npm run verify:icon && eas build --platform ios --profile development",
+    "build:ios:production": "npm run verify:icon && eas build --platform ios --profile production",
+    "ota:preview": "npm run verify:icon && eas update --channel preview --platform ios --message \"IRM Time Clock preview update\"",
+    "ota:production": "npm run verify:icon && eas update --channel production --platform ios --message \"IRM Time Clock production update\"",
+    "verify:icon": "node scripts/verify-icon.cjs"
   },
   "dependencies": {
     "expo": "~54.0.0",
