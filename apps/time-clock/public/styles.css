@@ -21,3 +21,17 @@
 #notice:empty{display:none}
 #notice:not(.error):not(.success){background:#e7eef4}
 @media(max-width:420px){.shell{padding:0 13px 100px}.app-header{margin:0 -13px 18px}.greeting h2{font-size:25px}.clock{font-size:38px}.card{padding:15px}}
+
+
+/* Material Symbols Rounded, shared across page navigation and actions. */
+.material-symbols-rounded{font-family:'Material Symbols Rounded';font-weight:normal;font-style:normal;font-size:21px;line-height:1;letter-spacing:normal;text-transform:none;display:inline-block;white-space:nowrap;word-wrap:normal;direction:ltr;-webkit-font-feature-settings:'liga';font-feature-settings:'liga';-webkit-font-smoothing:antialiased;flex-shrink:0}
+.settings-toggle .material-symbols-rounded{font-size:26px}
+.bottom-nav .nav-item{gap:4px}
+.bottom-nav .nav-item>.material-symbols-rounded{font-size:25px;line-height:26px}
+.bottom-nav .nav-item>span:not(.material-symbols-rounded){font-size:12px;line-height:16px}
+button:not(.settings-toggle):not(.nav-item):has(>.material-symbols-rounded){display:inline-flex;align-items:center;justify-content:center;gap:7px}
+.buttons button:has(>.material-symbols-rounded){font-size:12px;min-width:0}
+.buttons button>.material-symbols-rounded{font-size:20px}
+.icon-heading{display:flex;align-items:center;gap:8px}
+.icon-heading .material-symbols-rounded{font-size:21px;color:#087c7d}
+@media(max-width:380px){.buttons button:has(>.material-symbols-rounded){gap:5px;padding:10px 6px;font-size:11px}.buttons button>.material-symbols-rounded{font-size:18px}}
