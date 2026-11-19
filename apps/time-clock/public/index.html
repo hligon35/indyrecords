@@ -2,7 +2,11 @@
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="theme-color" content="#10253c"><title>IRM Time Clock</title><link rel="manifest" href="./manifest.webmanifest"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:FILL@0..1&display=swap" rel="stylesheet"><link rel="stylesheet" href="./styles.css"></head>
 <body><main class="shell">
 <header class="app-header"><button id="notifications-toggle" type="button" class="notifications-toggle" aria-label="Open notifications" aria-expanded="false" aria-controls="notifications-panel" hidden><span class="material-symbols-rounded" aria-hidden="true">notifications</span></button><h1 id="screen-title">Clock</h1><button id="settings-toggle" class="settings-toggle" type="button" aria-label="Open settings" aria-controls="settings-screen" aria-expanded="false"><span class="material-symbols-rounded" aria-hidden="true">settings</span></button></header>
-<aside id="notifications-panel" class="notifications-panel" hidden aria-label="Notifications"><div class="heading"><h2>Notifications</h2><button id="notifications-refresh" type="button" class="icon-button" aria-label="Refresh notifications"><span class="material-symbols-rounded" aria-hidden="true">refresh</span></button></div><div id="notifications-list" class="history"></div></aside>
+<aside id="notifications-panel" class="notifications-panel" hidden aria-label="Notifications">
+  <div class="heading"><h2>Notifications</h2><button id="notifications-refresh" type="button" class="icon-button" aria-label="Refresh notifications"><span class="material-symbols-rounded" aria-hidden="true">refresh</span></button></div>
+  <p id="preview-warning" class="preview-warning" hidden><strong>Preview test:</strong> Location restrictions are disabled. All events are simulated and cannot be used for payroll.</p>
+  <div id="notifications-list" class="history"></div>
+</aside>
 <div id="notice" class="notice" role="status">Loading your account…</div>
 <button id="sign-in" type="button" hidden>Open sign-in</button><button id="retry-account" type="button" hidden>Retry connection</button><span id="connection" hidden></span>
 <section id="app" hidden>
@@ -12,8 +16,30 @@
 <p id="payroll-status" class="hint payroll-status" aria-live="polite"></p>
 </section>
 <section id="recent-screen" class="screen" hidden aria-labelledby="screen-title">
-<section class="card"><h2 class="icon-heading"><span class="material-symbols-rounded" aria-hidden="true">edit_note</span><span>Request a missed-punch correction</span></h2><p class="hint">Use this for off-site work, GPS failures or missed punches. No payroll change occurs without approved ADP processing.</p><form id="correction-form"><label for="correction-type">Event type</label><select id="correction-type"><option value="IN">Clock In</option><option value="OUT">Clock Out</option><option value="LUNCH_START">Start Lunch</option><option value="LUNCH_END">End Lunch</option><option value="PAID_BREAK_START">Start Paid Break</option><option value="PAID_BREAK_END">End Paid Break</option></select><label for="correction-time">Actual local time</label><input id="correction-time" type="datetime-local" required><label for="correction-reason">Reason (at least 10 characters)</label><input id="correction-reason" required minlength="10" maxlength="500" placeholder="Explain the missing punch"><button class="primary" type="submit"><span class="material-symbols-rounded" aria-hidden="true">send</span><span>Submit for approval</span></button></form><h2>My requests</h2><div id="my-corrections" class="history"></div></section>
-
+  <div id="request-tabs" class="request-tabs" role="tablist" aria-label="Requests">
+    <button id="request-new-tab" type="button" role="tab" aria-controls="request-new-panel" aria-selected="true">New</button>
+    <button id="request-history-tab" type="button" role="tab" aria-controls="request-history-panel" aria-selected="false" tabindex="-1">History</button>
+  </div>
+  <section id="request-new-panel" class="card" role="tabpanel" aria-labelledby="request-new-tab">
+    <h2 class="icon-heading"><span class="material-symbols-rounded" aria-hidden="true">edit_note</span><span>Request a missed-punch correction</span></h2>
+    <form id="correction-form">
+      <label for="correction-type">Event type</label>
+      <select id="correction-type">
+        <option value="IN">Clock In</option><option value="OUT">Clock Out</option>
+        <option value="LUNCH_START">Start Lunch</option><option value="LUNCH_END">End Lunch</option>
+        <option value="PAID_BREAK_START">Start Paid Break</option><option value="PAID_BREAK_END">End Paid Break</option>
+      </select>
+      <label for="correction-time">Actual local time</label>
+      <input id="correction-time" type="datetime-local" required>
+      <label for="correction-reason">Reason (at least 10 characters)</label>
+      <input id="correction-reason" required minlength="10" maxlength="500" placeholder="Explain the missing punch">
+      <button class="primary" type="submit"><span class="material-symbols-rounded" aria-hidden="true">send</span><span>Submit for approval</span></button>
+    </form>
+  </section>
+  <section id="request-history-panel" class="card" role="tabpanel" aria-labelledby="request-history-tab" tabindex="0" hidden>
+    <h2>History</h2>
+    <div id="my-corrections" class="history"></div>
+  </section>
 </section>
 <section id="timecard-screen" class="screen" hidden><div class="screen-toolbar"><div><p class="eyebrow">CURRENT PAY PERIOD</p><h2 id="pay-period-label"></h2><p id="payday-label" class="hint"></p></div><button id="attendance-refresh" type="button" class="icon-button" title="Refresh attendance" aria-label="Refresh attendance"><span class="material-symbols-rounded" aria-hidden="true">refresh</span></button></div><section class="card timecard-card"><div id="timecard-summary" class="timecard-overview" aria-live="polite"></div><div id="attendance-history" class="history"></div></section></section>
 <section id="settings-screen" class="screen" hidden><div class="card account-card"><div class="heading"><h2 class="icon-heading"><span class="material-symbols-rounded" aria-hidden="true">manage_accounts</span><span>Account preferences</span></h2><button id="settings-refresh" type="button" class="icon-button" title="Refresh account" aria-label="Refresh account"><span class="material-symbols-rounded" aria-hidden="true">refresh</span></button></div><p class="hint">Your session stays active under your organization's sign-in policy. Attendance refreshes when you return.</p></div>

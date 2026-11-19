@@ -54,6 +54,7 @@ async function punch(type){
 function clearAccountDetails(){
  $('greeting-name').textContent='User!';
  sites=[];testLocationBypass=false;
+ $('preview-warning').hidden=true;
  for(const id of ['site','site-detail','employee-name','attendance-history','notifications-list','my-corrections','correction-list','employee-list','timecard-summary'])$(id).replaceChildren();
  $('timecard-summary').hidden=true;
  for(const form of $('app').querySelectorAll('form'))form.reset();
@@ -97,6 +98,7 @@ async function refreshAccount(){
    me=account;
    const profile=await api('/attendance/profile');
    testLocationBypass=Boolean(profile.previewLocationBypass);
+   $('preview-warning').hidden=!testLocationBypass;
    $('supervisor-panel').hidden=!['admin','supervisor'].includes(profile.role);
    const [worksites,...activity]=await Promise.allSettled([
     loadSites(),attendanceHistory(),notifications(),corrections(),
@@ -120,7 +122,7 @@ async function refreshAccount(){
    const incomplete=activity.some(result=>result.status==='rejected');
    $('retry-account').hidden=!incomplete;
    if(incomplete){note('Signed in. Some attendance details could not refresh. Retry the connection.','error');return}
-   note(testLocationBypass?'PREVIEW TEST: LOCATION RESTRICTIONS DISABLED. All events are simulated; not valid for payroll.':me.mode==='gateway'?'Connected to the approved time-clock gateway.':'Simulation mode. Punches are not sent to ADP.',testLocationBypass?'error':'');
+   note('');
   }catch(e){
    showAccountError(e);
   }
@@ -257,6 +259,34 @@ function updateGreeting(){
  $('greeting-time').textContent=hour<12?'Good Morning,':hour<17?'Good Afternoon,':'Good Evening,';
 }
 function tick(){$('clock').textContent=new Date().toLocaleTimeString([],{hour:'numeric',minute:'2-digit',second:'2-digit'});updateGreeting()}
+const requestTabs=$('request-tabs');
+const requestTabButtons=[...requestTabs.querySelectorAll('[role="tab"]')];
+function selectRequestTab(selected){
+ for(const tab of requestTabButtons){
+  const active=tab===selected;
+  tab.setAttribute('aria-selected',String(active));
+  tab.tabIndex=active?0:-1;
+  $(tab.getAttribute('aria-controls')).hidden=!active;
+ }
+}
+for(const tab of requestTabButtons)tab.addEventListener('click',()=>selectRequestTab(tab));
+requestTabs.addEventListener('keydown',event=>{
+ const index=requestTabButtons.indexOf(event.target);
+ if(index===-1)return;
+ const last=requestTabButtons.length-1;
+ const target={
+  ArrowLeft:index===0?last:index-1,
+  ArrowRight:index===last?0:index+1,
+  Home:0,
+  End:last
+ }[event.key];
+ if(target===undefined)return;
+ event.preventDefault();
+ const tab=requestTabButtons[target];
+ selectRequestTab(tab);
+ tab.focus();
+});
+
 const notificationToggle=$('notifications-toggle');
 const notificationPanel=$('notifications-panel');
 function closeNotifications(){

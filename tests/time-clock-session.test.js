@@ -12,6 +12,7 @@ const responses={
  '/api/attendance/profile':{role:'employee'},
  '/api/sites':{sites:[{id:'site',name:'Assigned worksite'}]},
  '/api/attendance/events':{events:[{event_type:'IN',occurred_at:'2026-01-01',provider_state:'SIMULATED'}]},
+ '/api/attendance/timecard':{totals:{paidHours:0,unpaidLunchMinutes:0},estimates:{overtimeMinutes:0}},
  '/api/attendance/notifications':{items:[]},
  '/api/attendance/requests':{requests:[]}
 };
@@ -19,10 +20,11 @@ const responses={
 function openClock(t, fetchResponse) {
  const dom=new JSDOM(html,{url:'https://clock.example.test/',runScripts:'outside-only',pretendToBeVisual:true});
  t.after(()=>dom.window.close());
+ dom.window.scrollTo=()=>{};
  dom.window.fetch=async (url, options)=>{
   assert.equal(options.credentials,'same-origin');
   assert.equal(options.redirect,'manual');
-  return await fetchResponse(url,options)??Response.json(responses[url]);
+  return await fetchResponse(url,options)??Response.json(responses[url.split('?')[0]]);
  };
  app.runInContext(dom.getInternalVMContext());
  return dom.window;
@@ -62,4 +64,52 @@ test('an Access 401 can be retried and a verified but unprovisioned account gets
  await setImmediate();
  assert.equal(get('connection').textContent,'Signed in');
  assert.equal(get('app').hidden,false);
+});
+
+test('the preview location warning appears only in notifications while bypass is active',async t=>{
+ let bypass=true;
+ const window=openClock(t,url=>url==='/api/attendance/profile'?
+  Response.json({role:'employee',previewLocationBypass:bypass}):null);
+ await setImmediate();
+ const get=id=>window.document.getElementById(id);
+ assert.equal(get('notice').textContent,'');
+ assert.equal(get('notifications-panel').hidden,true);
+ get('notifications-toggle').click();
+ assert.equal(get('notifications-panel').hidden,false);
+ assert.equal(get('preview-warning').hidden,false);
+ assert.match(get('preview-warning').textContent,/Location restrictions are disabled/);
+
+ bypass=false;
+ get('settings-refresh').click();
+ await setImmediate();
+ assert.equal(get('notice').textContent,'');
+ assert.equal(get('preview-warning').hidden,true);
+});
+
+test('Request tabs separate a draft correction from the employee history',async t=>{
+ const window=openClock(t,url=>url==='/api/attendance/requests'?Response.json({requests:[
+  {employee_id:'staff',event_type:'OUT',requested_at:'2026-11-19T17:00:00Z',status:'APPROVED'}
+ ]}):null);
+ await setImmediate();
+ const get=id=>window.document.getElementById(id);
+ window.document.querySelector('[data-screen="recent"]').click();
+ const newTab=get('request-new-tab');
+ const historyTab=get('request-history-tab');
+ assert.equal(newTab.getAttribute('aria-selected'),'true');
+ assert.equal(get('request-history-panel').hidden,true);
+ get('correction-reason').value='Unsubmitted correction';
+
+ newTab.focus();
+ newTab.dispatchEvent(new window.KeyboardEvent('keydown',{key:'ArrowRight',bubbles:true}));
+ assert.equal(window.document.activeElement,historyTab);
+ assert.equal(historyTab.getAttribute('aria-selected'),'true');
+ assert.equal(get('request-new-panel').hidden,true);
+ assert.equal(get('request-history-panel').hidden,false);
+ assert.equal(get('request-history-panel').querySelector('h2').textContent,'History');
+ assert.match(get('my-corrections').textContent,/APPROVED/);
+
+ newTab.click();
+ assert.equal(get('request-history-panel').hidden,true);
+ assert.equal(get('request-new-panel').hidden,false);
+ assert.equal(get('correction-reason').value,'Unsubmitted correction');
 });

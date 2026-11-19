@@ -52,13 +52,23 @@ button:not(.settings-toggle):not(.nav-item):has(>.material-symbols-rounded){disp
 .notifications-toggle[hidden],.notifications-panel[hidden]{display:none!important}
 .notifications-panel{position:absolute;z-index:30;left:max(12px,calc((100% - 740px)/2 + 16px));right:max(12px,calc((100% - 740px)/2 + 16px));top:67px;max-height:min(55vh,420px);overflow-y:auto;background:#fff;border:1px solid #dbe3e9;border-radius:14px;padding:17px;box-shadow:0 12px 30px #10253c24}
 .notifications-panel .heading{margin-bottom:12px}.notifications-panel h2{font-size:16px;margin:0}
+.preview-warning{
+  margin:0;
+  padding:10px 12px;
+  background:#fff4da;
+  color:#694507;
+  border-radius:9px;
+  font-size:12px;
+  line-height:1.5;
+}
 .icon-button{width:44px;height:44px;min-height:44px;display:inline-grid!important;place-items:center!important;padding:8px;border:1px solid #dbe3e9;border-radius:11px;background:#fff;flex-shrink:0}
 .icon-button .material-symbols-rounded{font-size:23px}
-#recent-screen .card{margin-top:0}
-#recent-screen .card form,#settings-screen form{display:flex;flex-direction:column;gap:3px;margin:16px 0 22px}
+.request-tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:10px}
+.request-tabs [aria-selected="true"]{background:#e5f3f2;border-color:#a5cfcc;color:#086c6d}
+#recent-screen > .card{margin:0}
+#recent-screen form,#settings-screen form{display:flex;flex-direction:column;gap:3px;margin:16px 0 22px}
+#recent-screen form{margin:10px 0 0}
 #recent-screen form button,#settings-screen form button{margin-top:17px;min-height:48px}
-#recent-screen .card h2+ .hint{margin-top:12px}
-#recent-screen #my-corrections{margin-top:16px}
 .screen-toolbar{
   display:grid;
   grid-template-columns:44px minmax(0,1fr) 44px;
