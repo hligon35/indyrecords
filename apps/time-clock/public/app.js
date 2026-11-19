@@ -26,11 +26,6 @@ async function loadSites(){
  if(items.some(s=>s.id===prior))$('site').value=prior;
  showSite();
 }
-async function history(){
- const {punches}=await api('/history');
- $('history').innerHTML=punches.length?punches.map(p=>'<div class="history-row"><div><strong>'+clean(p.type.replace('_',' '))+'</strong><small>'+clean(new Date(p.submitted_at).toLocaleString())+'</small></div><div class="state">'+clean(p.provider_state)+(p.provider_state==='PENDING'?'<button data-status="'+clean(p.id)+'">Check status</button>':'')+'</div></div>').join(''):'<p class="hint">No punches have been submitted.</p>';
- $('history').querySelectorAll('[data-status]').forEach(button=>button.addEventListener('click',async()=>{button.disabled=true;try{const status=await api('/punches/'+encodeURIComponent(button.dataset.status)+'/status');note('Provider status: '+status.state+'. '+(status.message||''),status.state==='FAILED'?'error':'success');await history()}catch(e){note(e.message,'error')}finally{button.disabled=false}}));
-}
 function getLocation(){
  return new Promise((resolve,reject)=>{
   if(!navigator.geolocation)return reject(Error('This device does not support location verification.'));
@@ -46,7 +41,7 @@ async function punch(type){
   const location=site.geofence_enabled&&!testLocationBypass?await getLocation():null;
   const {event:p}=await api('/attendance/events',{method:'POST',body:JSON.stringify({type,worksiteId:site.id,requestId,location})});
   note(p.provider_state==='CONFIRMED'?'Punch confirmed by the connected provider.':p.provider_state==='SIMULATED'?'Attendance event saved in SIMULATION. Not sent to ADP.':'Punch status: '+p.provider_state+'. '+(p.provider_message||'Check status before retrying.'),p.provider_state==='UNKNOWN'?'error':'success');
-  await Promise.all([history(),attendanceHistory()]);
+  await attendanceHistory();
  }catch(e){
   if(signInErrors.has(e.message)||e.message==='ACCOUNT_NOT_PROVISIONED')showAccountError(e);
   else note(e.message,'error');
@@ -59,7 +54,7 @@ async function punch(type){
 function clearAccountDetails(){
  $('greeting-name').textContent='User!';
  sites=[];testLocationBypass=false;
- for(const id of ['site','site-detail','employee-name','history','attendance-history','notifications-list','my-corrections','correction-list','employee-list','timecard-summary'])$(id).replaceChildren();
+ for(const id of ['site','site-detail','employee-name','attendance-history','notifications-list','my-corrections','correction-list','employee-list','timecard-summary'])$(id).replaceChildren();
  $('timecard-summary').hidden=true;
  for(const form of $('app').querySelectorAll('form'))form.reset();
 }
@@ -69,6 +64,8 @@ function showAccountError(error){
  const unprovisioned=code==='ACCOUNT_NOT_PROVISIONED';
  me=null;
  $('app').hidden=true;
+ notificationToggle.hidden=true;
+ closeNotifications();
  $('admin').hidden=true;
  $('supervisor-panel').hidden=true;
  clearAccountDetails();
@@ -102,7 +99,7 @@ async function refreshAccount(){
    testLocationBypass=Boolean(profile.previewLocationBypass);
    $('supervisor-panel').hidden=!['admin','supervisor'].includes(profile.role);
    const [worksites,...activity]=await Promise.allSettled([
-    loadSites(),history(),attendanceHistory(),notifications(),corrections(),
+    loadSites(),attendanceHistory(),notifications(),corrections(),
     ...(me.role==='admin'?[employees()]:[]),...($('timecard-summary').hidden?[]:[loadTimecard()])
    ]);
    const sessionFailure=activity.find(result=>result.status==='rejected'&&
@@ -115,6 +112,7 @@ async function refreshAccount(){
    $('payroll-status').textContent=me.mode==='gateway'?'Attendance is connected to the approved payroll gateway.':'Attendance entries are not transmitted to payroll.';
    $('mode').textContent=me.mode==='gateway'?'Payroll integration':'Simulation only';
    $('admin').hidden=me.role!=='admin';
+   notificationToggle.hidden=false;
    $('app').hidden=false;
    $('sign-in').hidden=true;
    $('connection').textContent='Signed in';
@@ -144,7 +142,6 @@ window.addEventListener('pageshow',event=>{if(event.persisted)resumeClock()});
 $('site').addEventListener('change',showSite);
 $('radius').addEventListener('input',()=>{$('radius-output').textContent=$('radius').value+' feet'});
 document.querySelectorAll('[data-attendance]').forEach(b=>b.addEventListener('click',()=>punch(b.dataset.attendance)));
-$('refresh').addEventListener('click',()=>history().catch(e=>note(e.message,'error')));
 $('site-form').addEventListener('submit',async e=>{
  e.preventDefault();const s=selected();if(!s)return note('Select an existing worksite. New site provisioning requires an approved admin operation.','error');
  try{await api('/admin/sites',{method:'POST',body:JSON.stringify({id:s.id,name:$('site-name').value,latitude:Number($('latitude').value),longitude:Number($('longitude').value),radiusFeet:Number($('radius').value),geofenceEnabled:$('geofence-enabled').checked})});await loadSites();note('Worksite settings saved. Future punch requests use the new geofence.','success')}catch(err){note(err.message,'error')}
@@ -171,16 +168,56 @@ async function corrections(){
   try{await api('/attendance/review',{method:'POST',body:JSON.stringify({id:button.dataset.review,decision:button.dataset.decision,reason})});note('Correction review recorded; not submitted to payroll.','success');await Promise.all([corrections(),notifications()])}catch(e){note(e.message,'error')}finally{button.disabled=false}
  }));
 }
-$('attendance-refresh').addEventListener('click',()=>attendanceHistory().catch(e=>note(e.message,'error')));
+$('attendance-refresh').addEventListener('click',()=>Promise.all([attendanceHistory(),loadTimecard()]).catch(e=>note(e.message,'error')));
 $('notifications-refresh').addEventListener('click',()=>notifications().catch(e=>note(e.message,'error')));
-async function loadTimecard(){
- const now=Date.now(),to=new Date(now).toISOString(),from=new Date(now-7*86400000).toISOString();
- const x=await api('/attendance/timecard?from='+encodeURIComponent(from)+'&to='+encodeURIComponent(to));
- $('timecard-summary').hidden=false;
- const earnings=x.estimates.estimatedGrossCents===null?'Earnings estimate unavailable.':'Estimated gross USD '+(x.estimates.estimatedGrossCents/100).toFixed(2)+'.';
- $('timecard-summary').textContent='PRELIMINARY 7-day rolling window (not verified payroll week): '+x.totals.paidHours+' paid hours; unpaid lunch '+x.totals.unpaidLunchMinutes+' minutes; potential overtime '+(x.estimates.overtimeMinutes/60).toFixed(2)+' hours. '+earnings+' Not official ADP payroll.';
+// Biweekly Sunday-Saturday pay periods, anchored to Nov 8-21, 2026.
+// Indianapolis local midnight boundaries account for daylight saving transitions.
+const DAY=86400000;
+const PAY_ANCHOR=Date.UTC(2026,10,8);
+function localDateParts(date){
+ const parts=new Intl.DateTimeFormat('en-US',{timeZone:'America/Indiana/Indianapolis',year:'numeric',month:'numeric',day:'numeric'}).formatToParts(date);
+ const v=type=>Number(parts.find(p=>p.type===type).value);
+ return {year:v('year'),month:v('month'),day:v('day')};
 }
-$('timecard-refresh').addEventListener('click',()=>loadTimecard().catch(e=>note(e.message,'error')));
+function easternMidnight(day){
+ const midday=new Date(Date.UTC(day.getUTCFullYear(),day.getUTCMonth(),day.getUTCDate(),12));
+ const value=new Intl.DateTimeFormat('en-US',{timeZone:'America/Indiana/Indianapolis',timeZoneName:'shortOffset'}).formatToParts(midday).find(p=>p.type==='timeZoneName')?.value||'';
+ const m=/^GMT([+-])(\\d{1,2})(?::(\\d{2}))?$/.exec(value);
+ if(!m)throw Error('Unable to resolve Indianapolis timezone offset');
+ const minutes=(m[1]==='+'?1:-1)*(Number(m[2])*60+Number(m[3]||0));
+ return new Date(Date.UTC(day.getUTCFullYear(),day.getUTCMonth(),day.getUTCDate())-minutes*60000);
+}
+function currentPayPeriod(now=new Date()){
+ const p=localDateParts(now);
+ const today=Date.UTC(p.year,p.month-1,p.day);
+ const index=Math.floor((today-PAY_ANCHOR)/(14*DAY));
+ const startDay=new Date(PAY_ANCHOR+index*14*DAY);
+ const endDay=new Date(PAY_ANCHOR+(index+1)*14*DAY);
+ const paydayDay=new Date(Date.UTC(2026,10,27)+index*14*DAY);
+ const labelDay=date=>date.toLocaleDateString('en-US',{timeZone:'UTC',month:'short',day:'numeric'});
+ return {from:easternMidnight(startDay).toISOString(),to:easternMidnight(endDay).toISOString(),
+  label:labelDay(startDay)+' – '+labelDay(new Date(endDay.getTime()-DAY))+', '+startDay.getUTCFullYear(),
+  payday:paydayDay.toLocaleDateString('en-US',{timeZone:'UTC',month:'long',day:'numeric',year:'numeric'})};
+}
+async function loadTimecard(){
+ const period=currentPayPeriod();
+ $('pay-period-label').textContent=period.label;
+ $('payday-label').textContent='Scheduled payday: '+period.payday;
+ const x=await api('/attendance/timecard?from='+encodeURIComponent(period.from)+'&to='+encodeURIComponent(period.to));
+ const hours=x.totals.paidHours.toFixed(2);
+ const lunch=(x.totals.unpaidLunchMinutes/60).toFixed(2);
+ const overtime=(x.estimates.overtimeMinutes/60).toFixed(2);
+ const summary=$('timecard-summary');summary.replaceChildren();
+ const metrics=[['Paid hours',hours],['Unpaid lunch',lunch+' hr'],['Potential overtime',overtime+' hr']];
+ for(const [label,value] of metrics){
+  const card=document.createElement('div');card.className='metric';
+  const title=document.createElement('span');title.className='metric-label';title.textContent=label;
+  const amount=document.createElement('strong');amount.textContent=value;
+  card.append(title,amount);summary.append(card);
+ }
+ if(x.totals.incompleteShift){const warning=document.createElement('p');warning.className='hint';warning.textContent='An incomplete shift requires review.';summary.append(warning)}
+ const disclaimer=document.createElement('p');disclaimer.className='hint timecard-disclaimer';disclaimer.textContent='Attendance estimates are preliminary and not an official payroll statement.';summary.append(disclaimer);
+}
 $('correction-form').addEventListener('submit',async e=>{
  e.preventDefault();const site=selected();if(!site)return note('No assigned worksite','error');
  const date=new Date($('correction-time').value);if(!Number.isFinite(date.getTime()))return note('Invalid correction date','error');
@@ -220,16 +257,33 @@ function updateGreeting(){
  $('greeting-time').textContent=hour<12?'Good Morning,':hour<17?'Good Afternoon,':'Good Evening,';
 }
 function tick(){$('clock').textContent=new Date().toLocaleTimeString([],{hour:'numeric',minute:'2-digit',second:'2-digit'});updateGreeting()}
+const notificationToggle=$('notifications-toggle');
+const notificationPanel=$('notifications-panel');
+function closeNotifications(){
+ notificationPanel.hidden=true;
+ notificationToggle.setAttribute('aria-expanded','false');
+}
+notificationToggle.addEventListener('click',async()=>{
+ const opening=notificationPanel.hidden;
+ notificationPanel.hidden=!opening;
+ notificationToggle.setAttribute('aria-expanded',String(opening));
+ if(opening)notifications().catch(e=>note(e.message,'error'));
+});
+document.addEventListener('click',event=>{
+ if(!notificationPanel.hidden&&!notificationPanel.contains(event.target)&&!notificationToggle.contains(event.target))closeNotifications();
+});
+document.addEventListener('keydown',event=>{if(event.key==='Escape')closeNotifications()});
 const screens=['clock','recent','timecard','settings'];
 let currentScreen='clock',lastMainScreen='clock';
 function showScreen(name){
  if(!screens.includes(name))return;
+ closeNotifications();
  if(name==='settings'){
   lastMainScreen=currentScreen==='settings'?lastMainScreen:currentScreen;
  }else{lastMainScreen=name}
  currentScreen=name;
  screens.forEach(screen=>{$(screen+'-screen').hidden=screen!==name});
- $('screen-title').textContent={clock:'Clock',recent:'Recent',timecard:'Timecard',settings:'Settings'}[name];
+ $('screen-title').textContent={clock:'Clock',recent:'Request',timecard:'Timecard',settings:'Settings'}[name];
  $('settings-toggle').setAttribute('aria-expanded',String(name==='settings'));
  $('settings-toggle').setAttribute('aria-label',name==='settings'?'Return to '+lastMainScreen:'Open settings');
  document.querySelectorAll('[data-screen]').forEach(button=>{
