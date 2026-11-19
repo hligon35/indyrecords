@@ -21,7 +21,10 @@
     "dev:android": "npm --prefix apps/mobile run android",
     "prepare:ios": "npm --prefix apps/mobile run native:ios",
     "build:ios:dev": "npm --prefix apps/mobile run build:ios:dev",
-    "dev:ios:dev-client": "npm --prefix apps/mobile run start:dev-client"
+    "dev:ios:dev-client": "npm --prefix apps/mobile run start:dev-client",
+    "clock:ios:preview": "npm --prefix apps/time-clock-ios run build:ios:preview",
+    "clock:ios:ota:preview": "npm --prefix apps/time-clock-ios run ota:preview",
+    "clock:ios:doctor": "npm --prefix apps/time-clock-ios run doctor"
   },
   "devDependencies": {
     "esbuild": "^0.28.2",
