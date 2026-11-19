@@ -11,13 +11,13 @@ export default function App(){
   <StatusBar style="light"/>
   <View style={styles.banner}><Text style={styles.bannerText}>IRM TIME CLOCK · PREVIEW / NON-PAYROLL</Text></View>
   {error?<View style={styles.center}><Text style={styles.heading}>Unable to open time clock</Text><Text style={styles.text}>{error}</Text></View>:
-   <WebView source={{uri:url}} originWhitelist={[url]} javaScriptEnabled domStorageEnabled
+   <WebView source={{uri:url}} originWhitelist={["https://*"]} javaScriptEnabled domStorageEnabled
     sharedCookiesEnabled thirdPartyCookiesEnabled={false}
     allowsBackForwardNavigationGestures
     geolocationEnabled
     onShouldStartLoadWithRequest={request=>{
       if(request.url.startsWith(url+'/')||request.url===url||request.url==='about:blank')return true;
-      const allowed=request.url.startsWith('https://')&&request.url.includes('.cloudflareaccess.com/');
+      const allowed=request.url.startsWith('https://')&&new URL(request.url).hostname.endsWith('.cloudflareaccess.com');
       if(allowed)return true;
       if(request.navigationType==='click'&&request.url.startsWith('https://'))Linking.openURL(request.url).catch(()=>{});
       return false;
