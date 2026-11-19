@@ -33,3 +33,16 @@ The iOS app config now uses `./assets/irm-time-clock-icon.png` for both the Expo
 Extract the package so your local repository contains `apps/time-clock-ios/assets/irm-time-clock-icon.png`, or save the standalone PNG directly to that location. From `apps/time-clock-ios`, run `npm run verify:icon` and `npx expo config --type public` before building. Then commit the binary image with `git add apps/time-clock-ios/assets/irm-time-clock-icon.png` from the repository root and push it to `main`.
 
 Changing a native iOS app icon requires a fresh `eas build --platform ios --profile preview` and reinstalling that build. An EAS OTA update alone **will not** replace the installed iOS home-screen icon.
+
+## iOS white-halo / double-mask fix
+Expo/iOS applies its own rounded Home Screen mask to the square app icon. The supplied branded artwork contains white canvas beyond its rounded icon shape; without normalization the white background appears as a halo. The build now runs `npm run prepare:icon` before EAS native build, using `sharp` to fill bright/transparent **edge-connected** canvas with the icon's navy background. The script preserves disconnected interior light artwork, makes the image fully opaque, and keeps dimensions 1024 × 1024. Run it locally and inspect the resulting PNG before committing the binary asset. If an internal white border remains, it is part of the artwork and requires a manual art-specific adjustment.
+
+From `apps/time-clock-ios`:
+```powershell
+npm install
+npm run prepare:icon
+npm run verify:icon
+npx expo config --type public
+npm run build:ios:preview
+```
+Commit the updated `apps/time-clock-ios/assets/irm-time-clock-icon.png` and lockfile to `main`. New native icon **requires a new iOS build and reinstall**; Expo OTA cannot alter the Home Screen icon.
