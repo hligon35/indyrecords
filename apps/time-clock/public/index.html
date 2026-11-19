@@ -11,7 +11,7 @@
 
 <p id="payroll-status" class="hint payroll-status" aria-live="polite"></p>
 </section>
-<section id="recent-screen" class="screen" hidden><div class="screen-intro"><p class="eyebrow">TIME ADJUSTMENTS</p><h2>Requests</h2><p class="hint">Submit and review attendance corrections.</p></div>
+<section id="recent-screen" class="screen" hidden aria-labelledby="screen-title">
 <section class="card"><h2 class="icon-heading"><span class="material-symbols-rounded" aria-hidden="true">edit_note</span><span>Request a missed-punch correction</span></h2><p class="hint">Use this for off-site work, GPS failures or missed punches. No payroll change occurs without approved ADP processing.</p><form id="correction-form"><label for="correction-type">Event type</label><select id="correction-type"><option value="IN">Clock In</option><option value="OUT">Clock Out</option><option value="LUNCH_START">Start Lunch</option><option value="LUNCH_END">End Lunch</option><option value="PAID_BREAK_START">Start Paid Break</option><option value="PAID_BREAK_END">End Paid Break</option></select><label for="correction-time">Actual local time</label><input id="correction-time" type="datetime-local" required><label for="correction-reason">Reason (at least 10 characters)</label><input id="correction-reason" required minlength="10" maxlength="500" placeholder="Explain the missing punch"><button class="primary" type="submit"><span class="material-symbols-rounded" aria-hidden="true">send</span><span>Submit for approval</span></button></form><h2>My requests</h2><div id="my-corrections" class="history"></div></section>
 
 </section>

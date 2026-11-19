@@ -11,8 +11,7 @@ const responses={
  '/api/me':{id:'staff',name:'Preview Employee',role:'employee',mode:'simulated'},
  '/api/attendance/profile':{role:'employee'},
  '/api/sites':{sites:[{id:'site',name:'Assigned worksite'}]},
- '/api/history':{punches:[{id:'punch',type:'IN',submitted_at:'2026-01-01',provider_state:'SIMULATED'}]},
- '/api/attendance/events':{events:[]},
+ '/api/attendance/events':{events:[{event_type:'IN',occurred_at:'2026-01-01',provider_state:'SIMULATED'}]},
  '/api/attendance/notifications':{items:[]},
  '/api/attendance/requests':{requests:[]}
 };
@@ -35,14 +34,14 @@ test('foreground refresh clears account data when Access redirects to login',asy
  await setImmediate();
  const get=id=>window.document.getElementById(id);
  assert.equal(get('connection').textContent,'Signed in');
- assert.match(get('history').textContent,/SIMULATED/);
+ assert.match(get('attendance-history').textContent,/SIMULATED/);
  expired=true;
  window.Date.now=()=>Date.now()+2000;
  window.dispatchEvent(new window.Event('irm-clock-resume'));
  await setImmediate();
  assert.equal(get('connection').textContent,'Sign in required');
  assert.equal(get('app').hidden,true);
- assert.equal(get('history').textContent,'');
+ assert.equal(get('attendance-history').textContent,'');
  assert.equal(get('sign-in').hidden,false);
  assert.match(get('notice').textContent,/ACCESS_LOGIN_REQUIRED/);
 });
