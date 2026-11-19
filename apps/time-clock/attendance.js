@@ -114,7 +114,7 @@ export async function attendanceRoute(request,env,actor,path){
   const part=kind=>Number(localParts.find(value=>value.type===kind)?.value);
   const mDay=Date.UTC(part('year'),part('month')-1,part('day'));
   const offsetPart=new Intl.DateTimeFormat('en-US',{timeZone:'America/Indiana/Indianapolis',timeZoneName:'shortOffset'}).formatToParts(new Date(mDay+12*3600000)).find(value=>value.type==='timeZoneName')?.value||'';
-  const match=/^GMT([+-])(\\d{1,2})(?::(\\d{2}))?$/.exec(offsetPart);
+  const match=/^GMT([+-])(\d{1,2})(?::(\d{2}))?$/.exec(offsetPart);
   if(!match)return fail('PAY_PERIOD_TIMEZONE_UNAVAILABLE',503);
   const minuteOffset=(match[1]==='+'?1:-1)*(Number(match[2])*60+Number(match[3]||0));
   const midpoint=new Date(mDay-minuteOffset*60000).toISOString();
