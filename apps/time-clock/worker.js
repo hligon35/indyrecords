@@ -1,5 +1,6 @@
 import {validateRadius,validateCoordinate,validatePunchType,verifyGeofence} from '../../packages/time-clock/policy.js';
 import {attendanceRoute} from './attendance.js';
+import {checkPunchLocation,previewLocationBypass} from '../../packages/time-clock/preview-policy.js';
 const response=(data,status=200)=>new Response(JSON.stringify(data),{status,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'}});
 const error=(code,status=400)=>response({error:code},status);
 const MAX_BODY=4096;
@@ -48,7 +49,7 @@ export default {async fetch(request,env){
  if(!employee)return error('ACCOUNT_NOT_PROVISIONED',403);
  if(path==='/'&&request.method==='GET')return new Response('IRM Time Clock API. Serve the PWA from an Access-protected static origin.',{headers:{'content-type':'text/plain','cache-control':'no-store'}});
  if(path.startsWith('/api/attendance/'))return attendanceRoute(request,env,employee,path);
- if(path==='/api/me'&&request.method==='GET')return response({id:employee.id,name:employee.display_name,role:employee.role,mode:env.ADP_MODE==='gateway'?'gateway':'simulated'});
+ if(path==='/api/me'&&request.method==='GET')return response({id:employee.id,name:employee.display_name,role:employee.role,mode:env.ADP_MODE==='gateway'?'gateway':'simulated',previewLocationBypass:previewLocationBypass(env)});
  if(path==='/api/sites'&&request.method==='GET'){
  const result=employee.role==='admin'?await env.DB.prepare('SELECT * FROM worksites ORDER BY name').all():await env.DB.prepare('SELECT s.* FROM worksites s JOIN assignments a ON a.worksite_id=s.id WHERE a.employee_id=? AND s.enabled=1 ORDER BY s.name').bind(employee.id).all();
  return response({sites:result.results||[]});
@@ -86,7 +87,7 @@ export default {async fetch(request,env){
  if(old)return old.worksite_id===data.worksiteId&&old.type===data.type?response({punch:old,duplicate:true}):error('REQUEST_ID_REUSED',409);
  const site=await env.DB.prepare('SELECT s.* FROM worksites s JOIN assignments a ON a.worksite_id=s.id WHERE a.employee_id=? AND s.id=? AND s.enabled=1').bind(employee.id,data.worksiteId).first();
  if(!site)return error('WORKSITE_NOT_ASSIGNED',403);
- const check=verifyGeofence({site,location:data.location});
+ const check=checkPunchLocation({site,location:data.location,env,verify:verifyGeofence});
  if(!check.allowed){await audit(env.DB,employee.id,'PUNCH_BLOCKED',site.id,{reason:check.reason});return response({error:check.reason,distanceFeet:check.distanceFeet},403)}
  const punchId=crypto.randomUUID(), now=new Date().toISOString();
  // Persist first. A transport failure must never cause an untracked repeated payroll submission.
