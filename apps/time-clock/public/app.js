@@ -1,4 +1,4 @@
-const $=id=>document.getElementById(id);let me=null,sites=[];let busy=false;
+const $=id=>document.getElementById(id);let me=null,sites=[];let busy=false;let testLocationBypass=false;
 const note=(message,type='')=>{$('notice').textContent=message;$('notice').className='notice '+type;};
 const clean=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 async function api(path,options={}){
@@ -36,7 +36,7 @@ async function punch(type){
  const requestId=crypto.randomUUID();
  try{
   note('Checking location and submitting '+type.toLowerCase().replace('_',' ')+'…');
-  const location=site.geofence_enabled?await getLocation():null;
+  const location=site.geofence_enabled&&!testLocationBypass?await getLocation():null;
   const {event:p}=await api('/attendance/events',{method:'POST',body:JSON.stringify({type,worksiteId:site.id,requestId,location})});
   note(p.provider_state==='CONFIRMED'?'Punch confirmed by the connected provider.':p.provider_state==='SIMULATED'?'Attendance event saved in SIMULATION. Not sent to ADP.':'Punch status: '+p.provider_state+'. '+(p.provider_message||'Check status before retrying.'),p.provider_state==='UNKNOWN'?'error':'success');
   await Promise.all([history(),attendanceHistory()]);
@@ -46,10 +46,10 @@ async function boot(){
  try{
   me=await api('/me');$('employee-name').textContent=me.name;$('mode').textContent=me.mode==='gateway'?'Payroll integration':'Simulation only';
   $('app').hidden=false;$('admin').hidden=me.role!=='admin';$('connection').textContent='Signed in';
-  const profile=await api('/attendance/profile');$('supervisor-panel').hidden=!['admin','supervisor'].includes(profile.role);
+  const profile=await api('/attendance/profile');testLocationBypass=Boolean(profile.previewLocationBypass);$('supervisor-panel').hidden=!['admin','supervisor'].includes(profile.role);
   await Promise.all([loadSites(),history(),attendanceHistory(),notifications(),corrections()]);
   if(me.role==='admin')await employees();
-  note(me.mode==='gateway'?'Connected to the approved time-clock gateway.':'Simulation mode. Punches are not sent to ADP.');
+  note(testLocationBypass?'PREVIEW TEST: LOCATION RESTRICTIONS DISABLED. All events are simulated; not valid for payroll.':me.mode==='gateway'?'Connected to the approved time-clock gateway.':'Simulation mode. Punches are not sent to ADP.',testLocationBypass?'error':'');
  }catch(e){note('Access unavailable: '+e.message+'. Sign in through the approved Cloudflare Access application and ask your administrator to provision your employee account.','error')}
 }
 $('site').addEventListener('change',showSite);
