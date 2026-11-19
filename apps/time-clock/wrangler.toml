@@ -16,6 +16,8 @@ migrations_dir = "migrations"
 ADP_MODE = "simulated"
 APP_ENV = "preview"
 EMAIL_ENABLED = "false"
+CLOCK_TESTING_ENABLED = "true"
+PREVIEW_DISABLE_GEOFENCE = "true"
 # Do not enable until root From domain alphazonelabs.com is verified in Resend.
 # Requested DNS/sending subdomain is mail.alphazonelabs.com, but the From address uses alphazonelabs.com.
 
