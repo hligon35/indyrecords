@@ -181,12 +181,7 @@ button:not(.settings-toggle):not(.nav-item):has(>.material-symbols-rounded){disp
 }
 
 
-/* High-contrast status/header controls and accessible punch dialogs. */
-.app-header{background:#10253c;border-bottom-color:#1c4560;color:#fff}
-.app-header h1{color:#fff}
-.app-header .settings-toggle,.app-header .notifications-toggle{color:#fff}
-.app-header .settings-toggle[aria-expanded="true"],.app-header .notifications-toggle[aria-expanded="true"]{background:#d8f3ef;color:#063f42}
-.app-header .notifications-toggle[data-unread]::after{border-color:#10253c;background:#ffca6b}
+/* Punch confirmation and error dialogs. */
 .punch-dialog[hidden],.punch-dialog #punch-dialog-confirm[hidden]{display:none!important}
 .punch-dialog{position:fixed;inset:0;z-index:100;display:grid;place-items:center;padding:calc(20px + env(safe-area-inset-top)) 16px calc(20px + env(safe-area-inset-bottom))}
 .punch-dialog-backdrop{position:absolute;inset:0;background:rgba(8,24,41,.72)}
