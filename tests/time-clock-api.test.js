@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { generateKeyPairSync, sign } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import { DatabaseSync } from 'node:sqlite';
 import worker from '../apps/time-clock/worker.js';
 const base='https://clock.example.test';
 const issuer='https://irm-example.cloudflareaccess.com';
@@ -108,6 +110,94 @@ test('cookie-authenticated writes still require the application origin',async()=
  }),{...config,DB:{}});
  assert.equal(res.status,403);
  assert.equal((await res.json()).error,'SAME_ORIGIN_REQUIRED');
+});
+
+test('only the configured active admin can replace an assigned worksite',async t=>{
+ t.mock.method(globalThis,'fetch',async()=>Response.json({keys:[signingKey]}));
+ const sqlite=new DatabaseSync(':memory:');
+ t.after(()=>sqlite.close());
+ sqlite.exec(readFileSync(new URL('../apps/time-clock/migrations/0001.sql',import.meta.url),'utf8'));
+ sqlite.exec(`
+  INSERT INTO employees(id,identity_sub,display_name,role) VALUES
+    ('owner','owner-sub','Owner','admin'),('admin','admin-sub','Administrator','admin'),
+    ('staff','staff-sub','Employee','employee');
+  INSERT INTO worksites(id,name,latitude,longitude,enabled) VALUES
+    ('old','Old site',0,0,1),('new','New site',0,0,1),('disabled','Disabled site',0,0,0);
+  INSERT INTO assignments(employee_id,worksite_id) VALUES ('admin','old'),('staff','old');
+ `);
+ const DB={
+  prepare(sql){
+   const statement=sqlite.prepare(sql);
+   const bind=(...args)=>({
+    first:()=>statement.get(...args),
+    all:()=>({results:statement.all(...args)}),
+    run:()=>({meta:statement.run(...args)})
+   });
+   return {bind};
+  },
+  batch(statements){
+   sqlite.exec('BEGIN');
+   try{
+    const results=statements.map(statement=>statement.run());
+    sqlite.exec('COMMIT');
+    return results;
+   }catch(error){
+    sqlite.exec('ROLLBACK');
+    throw error;
+   }
+  }
+ };
+ const call=(sub,path,method='GET',worksiteId='new',owner='owner-sub')=>worker.fetch(new Request(base+path,{
+  method,headers:{Origin:base,'Cf-Access-Jwt-Assertion':token({sub})},
+  body:method==='GET'?undefined:JSON.stringify({employeeId:'staff',worksiteId})
+ }),{...config,DB,WORKSITE_OWNER_SUBJECT:owner});
+ const assignments=()=>sqlite.prepare("SELECT worksite_id FROM assignments WHERE employee_id='staff'").all().map(row=>row.worksite_id);
+ const adminSites=await call('admin-sub','/api/sites');
+ assert.deepEqual((await adminSites.json()).sites.map(site=>site.id),['old']);
+ assert.equal((await (await call('owner-sub','/api/me')).json()).canManageWorksites,true);
+ for(const [sub,configured] of [['admin-sub','owner-sub'],['staff-sub','staff-sub'],['owner-sub','']]){
+  const denied=await call(sub,'/api/admin/assignments','PUT','new',configured);
+  assert.equal(denied.status,403);
+  assert.deepEqual(await denied.json(),{error:'OWNER_REQUIRED'});
+ }
+ assert.equal((await call('admin-sub','/api/admin/assignments','POST')).status,403);
+ assert.equal((await call('admin-sub','/api/admin/sites','POST')).status,403);
+ assert.equal((await call('owner-sub','/api/admin/assignments','PUT','disabled')).status,400);
+ assert.deepEqual(assignments(),['old']);
+ assert.equal((await call('owner-sub','/api/admin/assignments','PUT')).status,200);
+ assert.deepEqual(assignments(),['new']);
+ assert.equal(sqlite.prepare("SELECT actor_id FROM audit_log WHERE operation='WORKSITE_ASSIGNMENT_CHANGED'").get().actor_id,'owner');
+});
+test('dismissed notifications are removed only from the addressed employee inbox',async t=>{
+ t.mock.method(globalThis,'fetch',async()=>Response.json({keys:[signingKey]}));
+ const sqlite=new DatabaseSync(':memory:');
+ t.after(()=>sqlite.close());
+ for(const migration of ['0001.sql','0003_attendance.sql']){
+  sqlite.exec(readFileSync(new URL('../apps/time-clock/migrations/'+migration,import.meta.url),'utf8'));
+ }
+ const mine='1491392a-83b0-43e6-9f08-5006157d07ff';
+ const other='91cc8826-2460-4d45-97dd-18aeb9a80445';
+ sqlite.exec("INSERT INTO employees(id,identity_sub,display_name) VALUES ('mine','employee-subject','Mine'),('other','other-subject','Other')");
+ const insert=sqlite.prepare("INSERT INTO attendance_notifications(id,employee_id,event_kind,detail) VALUES (?,?,'APPROVED','Approved')");
+ insert.run(mine,'mine');
+ insert.run(other,'other');
+ const DB={prepare(sql){
+  const statement=sqlite.prepare(sql);
+  return {bind(...args){return {
+   first:()=>statement.get(...args),
+   all:()=>({results:statement.all(...args)}),
+   run:()=>statement.run(...args)
+  }}};
+ }};
+ const url=base+'/api/attendance/notifications';
+ const headers={Origin:base,'Cf-Access-Jwt-Assertion':token()};
+ for(const id of [other,mine,mine]){
+  const result=await worker.fetch(new Request(url+'/'+id,{method:'DELETE',headers}),{...config,DB});
+  assert.equal(result.status,200);
+ }
+ const inbox=await worker.fetch(new Request(url,{headers}),{...config,DB});
+ assert.deepEqual(await inbox.json(),{items:[]});
+ assert.deepEqual(sqlite.prepare('SELECT id FROM attendance_notifications').all().map(row=>row.id),[other]);
 });
 test('static requests use isolated assets binding',async()=>{
  const res=await worker.fetch(new Request(base+'/'),{ASSETS:{fetch:async()=>new Response('clock UI')}});

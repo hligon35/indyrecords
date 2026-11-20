@@ -27,6 +27,12 @@ export async function attendanceRoute(request,env,actor,path){
   const r=await db.prepare('SELECT id,event_kind,detail,created_at,read_at,email_state FROM attendance_notifications WHERE employee_id=? ORDER BY created_at DESC LIMIT 60').bind(actor.id).all();
   return ok({items:r.results||[]});
  }
+ if(method==='DELETE'&&path.startsWith('/api/attendance/notifications/')){
+  const id=path.slice('/api/attendance/notifications/'.length);
+  if(!/^[\da-f]{8}(?:-[\da-f]{4}){3}-[\da-f]{12}$/i.test(id))return fail('INVALID_NOTIFICATION');
+  await db.prepare('DELETE FROM attendance_notifications WHERE employee_id=? AND id=?').bind(actor.id,id).run();
+  return ok({deleted:true});
+ }
  if(path==='/api/attendance/requests'&&method==='POST'){
   let data;try{data=await read(request);validateEventType(data.type)}catch{return fail('INVALID_REQUEST')}
   if(!iso(data.requestedAt)||Math.abs(Date.now()-Date.parse(data.requestedAt))>31*86400000||typeof data.reason!=='string'||data.reason.trim().length<10||data.reason.length>500||typeof data.worksiteId!=='string'||typeof data.requestId!=='string'||!/^[\w-]{16,80}$/.test(data.requestId)||!['ONLINE','OFFLINE','GPS_EXCEPTION'].includes(data.source))return fail('INVALID_REQUEST');

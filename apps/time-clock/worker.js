@@ -30,11 +30,17 @@ export default {async fetch(request,env){
  if(access.error)return error(access.error,access.status);
  const employee=await env.DB.prepare('SELECT * FROM employees WHERE identity_sub=? AND active=1').bind(access.sub).first();
  if(!employee)return error('ACCOUNT_NOT_PROVISIONED',403);
+ const canManageWorksites=employee.role==='admin'&&access.sub===env.WORKSITE_OWNER_SUBJECT?.trim();
  if(path==='/'&&request.method==='GET')return new Response('IRM Time Clock API. Serve the PWA from an Access-protected static origin.',{headers:{'content-type':'text/plain','cache-control':'no-store'}});
  if(path.startsWith('/api/attendance/'))return attendanceRoute(request,env,employee,path);
- if(path==='/api/me'&&request.method==='GET')return response({id:employee.id,name:employee.display_name,role:employee.role,mode:env.ADP_MODE==='gateway'?'gateway':'simulated',previewLocationBypass:previewLocationBypass(env)});
+ if(path==='/api/me'&&request.method==='GET')return response({id:employee.id,name:employee.display_name,role:employee.role,canManageWorksites,mode:env.ADP_MODE==='gateway'?'gateway':'simulated',previewLocationBypass:previewLocationBypass(env)});
  if(path==='/api/sites'&&request.method==='GET'){
- const result=employee.role==='admin'?await env.DB.prepare('SELECT * FROM worksites ORDER BY name').all():await env.DB.prepare('SELECT s.* FROM worksites s JOIN assignments a ON a.worksite_id=s.id WHERE a.employee_id=? AND s.enabled=1 ORDER BY s.name').bind(employee.id).all();
+ const result=await env.DB.prepare('SELECT s.* FROM worksites s JOIN assignments a ON a.worksite_id=s.id WHERE a.employee_id=? AND s.enabled=1 ORDER BY s.name,s.id').bind(employee.id).all();
+ return response({sites:result.results||[]});
+ }
+ if(path==='/api/admin/sites'&&request.method==='GET'){
+ if(!canManageWorksites)return error('OWNER_REQUIRED',403);
+ const result=await env.DB.prepare('SELECT * FROM worksites WHERE enabled=1 ORDER BY name,id').all();
  return response({sites:result.results||[]});
  }
  if(path.startsWith('/api/punches/')&&path.endsWith('/status')&&request.method==='GET'){
@@ -81,7 +87,7 @@ export default {async fetch(request,env){
  return response({punch:{id:punchId,type:data.type,provider_state:provider.state,provider_message:provider.message,submitted_at:now}},provider.state==='UNKNOWN'?202:201);
  }
  if(path==='/api/admin/sites'&&request.method==='POST'){
- if(employee.role!=='admin')return error('ADMIN_REQUIRED',403);
+ if(!canManageWorksites)return error('OWNER_REQUIRED',403);
  let data;try{data=await body(request);validateRadius(data.radiusFeet);validateCoordinate(data.latitude,data.longitude);if(typeof data.name!=='string'||!data.name.trim()||data.name.length>120)throw Error('Invalid site');}catch{return error('INVALID_WORKSITE',400)}
  const id=typeof data.id==='string'&&/^[a-zA-Z0-9_-]{1,80}$/.test(data.id)?data.id:crypto.randomUUID();
  const existing=await env.DB.prepare('SELECT * FROM worksites WHERE id=?').bind(id).first();
@@ -89,10 +95,23 @@ export default {async fetch(request,env){
  await audit(env.DB,employee.id,'WORKSITE_SETTINGS_CHANGED',id,{old:existing?{radiusFeet:existing.radius_feet,latitude:existing.latitude,longitude:existing.longitude,enabled:existing.geofence_enabled}:null,new:{radiusFeet:data.radiusFeet,latitude:data.latitude,longitude:data.longitude,enabled:data.geofenceEnabled!==false}});
  return response({id,updated:true});
  }
- if(path==='/api/admin/assignments'&&request.method==='POST'){
- if(employee.role!=='admin')return error('ADMIN_REQUIRED',403);
+ if(path==='/api/admin/assignments'&&['POST','PUT'].includes(request.method)){
+ if(!canManageWorksites)return error('OWNER_REQUIRED',403);
  let data;try{data=await body(request)}catch{return error('INVALID_ASSIGNMENT')}
- if(typeof data.employeeId!=='string'||typeof data.worksiteId!=='string'||data.employeeId.length>120||data.worksiteId.length>120)return error('INVALID_ASSIGNMENT');
+ if(!data||typeof data.employeeId!=='string'||typeof data.worksiteId!=='string'||!data.employeeId||!data.worksiteId||data.employeeId.length>120||data.worksiteId.length>120)return error('INVALID_ASSIGNMENT');
+ if(request.method==='PUT'){
+  const {employeeId,worksiteId}=data;
+  const enabledAssignment='SELECT 1 FROM assignments a JOIN worksites s ON s.id=a.worksite_id WHERE a.employee_id=? AND a.worksite_id=? AND s.enabled=1';
+  const [, , recorded]=await env.DB.batch([
+   env.DB.prepare('INSERT OR IGNORE INTO assignments(employee_id,worksite_id) SELECT e.id,s.id FROM employees e,worksites s WHERE e.id=? AND s.id=? AND s.enabled=1')
+    .bind(employeeId,worksiteId),
+   env.DB.prepare('DELETE FROM assignments WHERE employee_id=? AND worksite_id<>? AND EXISTS ('+enabledAssignment+')')
+    .bind(employeeId,worksiteId,employeeId,worksiteId),
+   env.DB.prepare('INSERT INTO audit_log(id,actor_id,operation,resource_id,detail) SELECT ?,?,?,?,? WHERE EXISTS ('+enabledAssignment+')')
+    .bind(crypto.randomUUID(),employee.id,'WORKSITE_ASSIGNMENT_CHANGED',employeeId,JSON.stringify({worksiteId}),employeeId,worksiteId)
+  ]);
+  return recorded.meta?.changes===1?response({assigned:true}):error('INVALID_ASSIGNMENT');
+ }
  const result=await env.DB.prepare('INSERT OR IGNORE INTO assignments(employee_id,worksite_id) SELECT e.id,s.id FROM employees e,worksites s WHERE e.id=? AND s.id=?').bind(data.employeeId,data.worksiteId).run();
  await audit(env.DB,employee.id,'ASSIGNMENT_CREATED',data.worksiteId,{employeeId:data.employeeId});
  return response({created:result.meta?.changes===1});

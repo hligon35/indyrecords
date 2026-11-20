@@ -18,6 +18,8 @@ Independent, Access-protected employee PWA and Cloudflare Worker API. Shares the
 6. Require HTTPS and Cloudflare Access protection for the entire `workers.dev` hostname before sharing; authenticate both static page and API. Verify browsers, mobiles, geofence accuracy, role boundaries, exceptions, and signed audit/retention policy.
 7. Do not use real punch controls as the official payroll clock before employee device testing, security review and ADP validation have been completed.
 
+To enable worksite management in Settings, set `WORKSITE_OWNER_SUBJECT` on the Time Clock Worker to the verified Cloudflare Access subject of the owner's existing active admin account. Run `npx wrangler secret put WORKSITE_OWNER_SUBJECT --config apps/time-clock/wrangler.toml` from the repository root and supply the same subject used to provision that account. Without a matching subject, worksite edits and reassignments are disabled. Saving an assignment in Settings replaces that employee's previous assignments with the selected enabled worksite.
+
 ## Operational limits
 GPS supplied by the browser is untrusted and can be spoofed; server-side calculation does not prove physical presence. Accuracy is limited to 50 meters and a 60-second capture window; the conservative boundary check requires distance plus reported accuracy to be within the radius. A blocked clock-out must have an authorized human correction path so people can report time actually worked. Location coordinates are used for the decision but not retained in punch history. Provider timeouts are marked UNKNOWN, not silently retried to prevent duplicate payroll punches. Pending events need gateway-side reconciliation before any payroll confirmation claim.
 

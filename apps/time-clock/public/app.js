@@ -1,8 +1,51 @@
-const $=id=>document.getElementById(id);let me=null,sites=[];let busy=false;let testLocationBypass=false;let refreshing=null;let lastRefreshAt=0;
+const $=id=>document.getElementById(id);let me=null,assignedSite=null,managedSites=[];let busy=false;let testLocationBypass=false;let refreshing=null;let lastRefreshAt=0;
 let refreshAfterPunch=false;
 const signInErrors=new Set(['ACCESS_LOGIN_REQUIRED','ACCESS_TOKEN_NOT_FORWARDED','ACCESS_TOKEN_INVALID_OR_EXPIRED','SIGN_IN_REQUIRED']);
-const note=(message,type='')=>{$('notice').textContent=message;$('notice').className='notice '+type;};
+const notificationToggle=$('notifications-toggle');
+const notificationPanel=$('notifications-panel');
+const alertsList=$('notifications-list');
+const localAlerts=[];
+const statusAlerts=new Map();
+const pendingDeletions=new Map();
+let nextAlertId=0;
+let notificationRevision=0;
+let serverAlerts=[];
+let swipe=null;
 const clean=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function setUnread(unread){
+ notificationToggle.toggleAttribute('data-unread',unread);
+ notificationToggle.setAttribute('aria-label',unread?'Alerts, new messages':'Alerts');
+}
+function renderAlerts(){
+ swipe=null;
+ const alerts=[...localAlerts,...statusAlerts.values(),...serverAlerts].filter(alert=>!alert.dismissed).sort((a,b)=>b.receivedAt-a.receivedAt);
+ alertsList.innerHTML=alerts.length?alerts.map(({id,title,message,type,receivedAt})=>
+  '<div class="alert-swipe" data-alert-id="'+clean(id)+'"><span class="alert-swipe-action" aria-hidden="true">Delete</span>'+
+  '<div class="alert-entry '+type+'"><div><strong>'+clean(title)+'</strong><p>'+clean(message)+'</p>'+
+  '<time datetime="'+receivedAt.toISOString()+'">'+clean(receivedAt.toLocaleString())+'</time></div>'+
+  '<button class="alert-delete" type="button" aria-label="Delete alert: '+clean(title)+'"'+(pendingDeletions.has(id)?' disabled':'')+'>'+
+  '<span class="material-symbols-rounded" aria-hidden="true">close</span></button></div></div>'
+ ).join(''):'<p class="hint">No alerts.</p>';
+}
+function announceAlert(message){
+ $('notice').textContent=message;
+ if(notificationPanel.hidden)setUnread(true);
+ renderAlerts();
+}
+function note(message,type='info'){
+ const title={info:'Update',success:'Success',error:'Error'}[type];
+ localAlerts.unshift({id:'local:'+nextAlertId++,title,message,type,receivedAt:new Date()});
+ if(localAlerts.length>30)localAlerts.pop();
+ announceAlert(message);
+}
+function setStatusAlert(key,title,message,type='warning'){
+ if(!message){
+  if(statusAlerts.delete(key))renderAlerts();
+ }else if(statusAlerts.get(key)?.message!==message){
+  statusAlerts.set(key,{id:'status:'+key,title,message,type,receivedAt:new Date()});
+  announceAlert(message);
+ }
+}
 async function api(path,options={}){
  // Access may redirect an expired API session to a cross-origin login page. Open
  // login as a document navigation so it can set cookies in this browser session.
@@ -14,17 +57,35 @@ async function api(path,options={}){
  if(!res.ok)throw Error(json.error||'Request failed');
  return json;
 }
-const selected=()=>sites.find(x=>x.id===$('site').value);
-function showSite(){
- const s=selected();if(!s){$('site-detail').textContent='';return}
- $('site-detail').textContent=s.geofence_enabled?'Location required within '+s.radius_feet+' feet of this worksite.':'Location restriction is disabled for this site.';
- if(me?.role==='admin'){$('site-name').value=s.name;$('latitude').value=s.latitude;$('longitude').value=s.longitude;$('radius').value=s.radius_feet;$('radius-output').textContent=s.radius_feet+' feet';$('geofence-enabled').checked=Boolean(s.geofence_enabled)}
+function fillOptions(select,items,label,placeholder){
+ const previous=select.value;
+ select.replaceChildren(new Option(placeholder,''),...items.map(item=>new Option(item[label],item.id)));
+ if(items.some(item=>item.id===previous))select.value=previous;
+}
+function showManagedSite(){
+ const site=managedSites.find(item=>item.id===$('managed-site').value);
+ $('site-name').value=site?.name??'';
+ $('latitude').value=site?.latitude??'';
+ $('longitude').value=site?.longitude??'';
+ $('radius').value=site?.radius_feet??500;
+ $('radius-output').textContent=$('radius').value+' feet';
+ $('geofence-enabled').checked=Boolean(site?.geofence_enabled);
 }
 async function loadSites(){
- const {sites:items}=await api('/sites');const prior=$('site').value;sites=items;
- $('site').replaceChildren(...items.map(s=>{const o=document.createElement('option');o.value=s.id;o.textContent=s.name;return o}));
- if(items.some(s=>s.id===prior))$('site').value=prior;
- showSite();
+ const account=me;
+ const {sites}=await api('/sites');
+ if(me!==account)return;
+ assignedSite=sites[0]??null;
+ $('site').textContent=assignedSite?.name??'No worksite assigned';
+}
+async function loadManagedSites(){
+ const account=me;
+ const {sites}=await api('/admin/sites');
+ if(me!==account)return;
+ managedSites=sites;
+ fillOptions($('managed-site'),sites,'name','Choose a worksite');
+ fillOptions($('worksite-assignment'),sites,'name','Choose a worksite');
+ showManagedSite();
 }
 function getLocation(){
  return new Promise((resolve,reject)=>{
@@ -33,11 +94,11 @@ function getLocation(){
  });
 }
 async function punch(type){
- if(busy)return;const site=selected();if(!site)return note('No worksite is assigned to your account. Contact an administrator.','error');
+ if(busy)return;const site=assignedSite;if(!site)return note('No worksite is assigned to your account. Contact the owner.','error');
  busy=true;document.querySelectorAll('[data-attendance]').forEach(b=>b.disabled=true);
  const requestId=crypto.randomUUID();
  try{
-  note('Checking location and submitting '+type.toLowerCase().replace('_',' ')+'…');
+  note('Submitting '+type.toLowerCase().replaceAll('_',' ')+'…');
   const location=site.geofence_enabled&&!testLocationBypass?await getLocation():null;
   const {event:p}=await api('/attendance/events',{method:'POST',body:JSON.stringify({type,worksiteId:site.id,requestId,location})});
   note(p.provider_state==='CONFIRMED'?'Punch confirmed by the connected provider.':p.provider_state==='SIMULATED'?'Attendance event saved in SIMULATION. Not sent to ADP.':'Punch status: '+p.provider_state+'. '+(p.provider_message||'Check status before retrying.'),p.provider_state==='UNKNOWN'?'error':'success');
@@ -53,9 +114,13 @@ async function punch(type){
 }
 function clearAccountDetails(){
  $('greeting-name').textContent='User!';
- sites=[];testLocationBypass=false;
- $('preview-warning').hidden=true;
- for(const id of ['site','site-detail','employee-name','attendance-history','notifications-list','my-corrections','correction-list','employee-list','timecard-summary'])$(id).replaceChildren();
+ assignedSite=null;managedSites=[];testLocationBypass=false;
+ $('site').textContent='No worksite assigned';
+ for(const id of ['managed-site','worksite-employee','worksite-assignment','employee-name','attendance-history','my-corrections','correction-list','employee-list','timecard-summary'])$(id).replaceChildren();
+ localAlerts.length=0;serverAlerts=[];statusAlerts.clear();
+ pendingDeletions.clear();notificationRevision++;
+ $('notice').textContent='';
+ setUnread(false);renderAlerts();
  $('timecard-summary').hidden=true;
  for(const form of $('app').querySelectorAll('form'))form.reset();
 }
@@ -65,7 +130,7 @@ function showAccountError(error){
  const unprovisioned=code==='ACCOUNT_NOT_PROVISIONED';
  me=null;
  $('app').hidden=true;
- notificationToggle.hidden=true;
+ $('notifications-refresh').hidden=true;
  closeNotifications();
  $('admin').hidden=true;
  $('supervisor-panel').hidden=true;
@@ -91,18 +156,20 @@ async function refreshAccount(){
  refreshing=(async()=>{
   try{
    const account=await api('/me');
-   if(me&&(me.id!==account.id||me.role!==account.role)){
+   if(me&&(me.id!==account.id||me.role!==account.role||me.canManageWorksites!==account.canManageWorksites)){
     $('app').hidden=true;
     clearAccountDetails();
    }
    me=account;
    const profile=await api('/attendance/profile');
    testLocationBypass=Boolean(profile.previewLocationBypass);
-   $('preview-warning').hidden=!testLocationBypass;
+   setStatusAlert('preview','Preview test',testLocationBypass?
+    'Location restrictions are disabled. All events are simulated and cannot be used for payroll.':'');
    $('supervisor-panel').hidden=!['admin','supervisor'].includes(profile.role);
    const [worksites,...activity]=await Promise.allSettled([
     loadSites(),attendanceHistory(),notifications(),corrections(),
-    ...(me.role==='admin'?[employees()]:[]),...($('timecard-summary').hidden?[]:[loadTimecard()])
+    ...(me.role==='admin'?[employees()]:[]),...(me.canManageWorksites?[loadManagedSites()]:[]),
+    ...($('timecard-summary').hidden?[]:[loadTimecard()])
    ]);
    const sessionFailure=activity.find(result=>result.status==='rejected'&&
     (signInErrors.has(result.reason.message)||result.reason.message==='ACCOUNT_NOT_PROVISIONED'));
@@ -111,10 +178,10 @@ async function refreshAccount(){
    $('employee-name').textContent=me.name;
    $('greeting-name').textContent=(String(me.name||'').trim().split(/\s+/)[0]||'User')+'!';
    updateGreeting();
-   $('payroll-status').textContent=me.mode==='gateway'?'Attendance is connected to the approved payroll gateway.':'Attendance entries are not transmitted to payroll.';
    $('mode').textContent=me.mode==='gateway'?'Payroll integration':'Simulation only';
    $('admin').hidden=me.role!=='admin';
-   notificationToggle.hidden=false;
+   $('worksite-settings').hidden=!me.canManageWorksites;
+   $('notifications-refresh').hidden=false;
    $('app').hidden=false;
    $('sign-in').hidden=true;
    $('connection').textContent='Signed in';
@@ -122,7 +189,6 @@ async function refreshAccount(){
    const incomplete=activity.some(result=>result.status==='rejected');
    $('retry-account').hidden=!incomplete;
    if(incomplete){note('Signed in. Some attendance details could not refresh. Retry the connection.','error');return}
-   note('');
   }catch(e){
    showAccountError(e);
   }
@@ -141,12 +207,23 @@ window.addEventListener('irm-clock-resume',resumeClock);
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')resumeClock()});
 window.addEventListener('pageshow',event=>{if(event.persisted)resumeClock()});
 
-$('site').addEventListener('change',showSite);
+$('managed-site').addEventListener('change',showManagedSite);
 $('radius').addEventListener('input',()=>{$('radius-output').textContent=$('radius').value+' feet'});
 document.querySelectorAll('[data-attendance]').forEach(b=>b.addEventListener('click',()=>punch(b.dataset.attendance)));
 $('site-form').addEventListener('submit',async e=>{
- e.preventDefault();const s=selected();if(!s)return note('Select an existing worksite. New site provisioning requires an approved admin operation.','error');
- try{await api('/admin/sites',{method:'POST',body:JSON.stringify({id:s.id,name:$('site-name').value,latitude:Number($('latitude').value),longitude:Number($('longitude').value),radiusFeet:Number($('radius').value),geofenceEnabled:$('geofence-enabled').checked})});await loadSites();note('Worksite settings saved. Future punch requests use the new geofence.','success')}catch(err){note(err.message,'error')}
+ e.preventDefault();
+ const id=$('managed-site').value;
+ try{await api('/admin/sites',{method:'POST',body:JSON.stringify({id,name:$('site-name').value,latitude:Number($('latitude').value),longitude:Number($('longitude').value),radiusFeet:Number($('radius').value),geofenceEnabled:$('geofence-enabled').checked})});await Promise.all([loadSites(),loadManagedSites()]);note('Worksite settings saved. Future punch requests use the new geofence.','success')}catch(err){note(err.message,'error')}
+});
+$('worksite-assignment-form').addEventListener('submit',async e=>{
+ e.preventDefault();
+ const employeeId=$('worksite-employee').value,worksiteId=$('worksite-assignment').value;
+ try{
+  await api('/admin/assignments',{method:'PUT',body:JSON.stringify({employeeId,worksiteId})});
+  if(employeeId===me?.id)await loadSites();
+  e.target.reset();
+  note('Assigned worksite updated.','success');
+ }catch(err){note(err.message,'error')}
 });
 
 async function attendanceHistory(){
@@ -154,9 +231,79 @@ async function attendanceHistory(){
  $('attendance-history').innerHTML=events.length?events.slice(0,15).map(e=>'<div class="history-row"><div><strong>'+clean(e.event_type.replaceAll('_',' '))+'</strong><small>'+clean(new Date(e.occurred_at).toLocaleString())+'</small></div><span class="state">'+clean(e.provider_state)+'</span></div>').join(''):'<p class="hint">No attendance events recorded.</p>';
 }
 async function notifications(){
+ const account=me;
+ const revision=++notificationRevision;
  const {items}=await api('/attendance/notifications');
- $('notifications-list').innerHTML=items.length?items.slice(0,20).map(x=>'<div class="history-row"><div><strong>'+clean(x.event_kind)+'</strong><small>'+clean(x.detail)+'</small></div><small>'+clean(new Date(x.created_at+'Z').toLocaleString())+'</small></div>').join(''):'<p class="hint">No notifications.</p>';
+ if(me!==account||revision!==notificationRevision)return;
+ const previous=new Set(serverAlerts.map(alert=>alert.id));
+ serverAlerts=items.slice(0,20).map(item=>{
+  const timestamp=item.created_at.replace(' ','T');
+  const receivedAt=new Date(/(?:Z|[+-]\d\d:\d\d)$/i.test(timestamp)?timestamp:timestamp+'Z');
+  return {id:'server:'+item.id,notificationId:item.id,title:item.event_kind,message:item.detail,type:'info',receivedAt};
+ }).filter(alert=>Number.isFinite(alert.receivedAt.getTime()));
+ if(serverAlerts.some(alert=>!previous.has(alert.id))&&notificationPanel.hidden)setUnread(true);
+ renderAlerts();
 }
+async function deleteAlert(id,restoreFocus){
+ const serverAlert=serverAlerts.find(alert=>alert.id===id);
+ if(serverAlert){
+  if(pendingDeletions.has(id))return;
+  const deletion=Symbol();
+  pendingDeletions.set(id,deletion);
+  renderAlerts();
+  try{
+   await api('/attendance/notifications/'+encodeURIComponent(serverAlert.notificationId),{method:'DELETE'});
+   if(pendingDeletions.get(id)!==deletion)return;
+   notificationRevision++;
+   serverAlerts=serverAlerts.filter(alert=>alert.id!==id);
+  }catch(error){
+   if(pendingDeletions.get(id)!==deletion)return;
+   note(error.message,'error');
+  }
+  pendingDeletions.delete(id);
+ }else{
+  const index=localAlerts.findIndex(alert=>alert.id===id);
+  if(index!==-1)localAlerts.splice(index,1);
+  for(const alert of statusAlerts.values())if(alert.id===id)alert.dismissed=true;
+ }
+ renderAlerts();
+ if(restoreFocus&&!notificationPanel.hidden)(alertsList.querySelector('.alert-delete')??notificationToggle).focus();
+}
+
+alertsList.addEventListener('click',event=>{
+ const button=event.target.closest('.alert-delete');
+ if(button)deleteAlert(button.closest('.alert-swipe').dataset.alertId,event.detail===0);
+});
+alertsList.addEventListener('pointerdown',event=>{
+ const row=event.target.closest('.alert-swipe');
+ if(swipe||!row||!event.isPrimary||event.button!==0||event.target.closest('button'))return;
+ swipe={row,pointerId:event.pointerId,x:event.clientX,y:event.clientY};
+ row.setPointerCapture(event.pointerId);
+});
+alertsList.addEventListener('pointermove',event=>{
+ if(!swipe||swipe.pointerId!==event.pointerId)return;
+ const left=swipe.x-event.clientX,vertical=Math.abs(swipe.y-event.clientY);
+ if(!swipe.row.classList.contains('dragging')){
+  if(vertical>8&&vertical>=Math.abs(left)){finishSwipe(event,false);return}
+  if(left<=8||left<=vertical)return;
+  swipe.row.classList.add('dragging');
+ }
+ swipe.row.querySelector('.alert-entry').style.transform='translateX('+-Math.max(0,left)+'px)';
+});
+function finishSwipe(event,release){
+ if(!swipe||swipe.pointerId!==event.pointerId)return;
+ const {row,x,y}=swipe;
+ swipe=null;
+ const left=x-event.clientX;
+ const width=row.getBoundingClientRect().width;
+ const shouldDelete=release&&width>0&&left>Math.abs(y-event.clientY)&&left>width*.3;
+ row.classList.remove('dragging');
+ row.querySelector('.alert-entry').style.transform='';
+ if(shouldDelete)deleteAlert(row.dataset.alertId,false);
+}
+alertsList.addEventListener('pointerup',event=>finishSwipe(event,true));
+alertsList.addEventListener('pointercancel',event=>finishSwipe(event,false));
+alertsList.addEventListener('lostpointercapture',event=>finishSwipe(event,false));
 async function corrections(){
  const {requests}=await api('/attendance/requests');const panel=$('correction-list');
  if(!me)return;
@@ -165,7 +312,8 @@ async function corrections(){
  const review=me.role==='admin'||!$('supervisor-panel').hidden;
  panel.innerHTML=requests.length?requests.map(x=>'<div class="history-row"><div><strong>'+clean(x.display_name)+' — '+clean(x.event_type)+'</strong><small>'+clean(new Date(x.requested_at).toLocaleString())+' · '+clean(x.status)+'</small><small>'+clean(x.reason)+'</small></div>'+(review&&x.status==='PENDING'?'<div><button data-review="'+clean(x.id)+'" data-decision="APPROVED">Approve</button><button data-review="'+clean(x.id)+'" data-decision="REJECTED">Reject</button></div>':'')+'</div>').join(''):'<p class="hint">No correction requests.</p>';
  panel.querySelectorAll('[data-review]').forEach(button=>button.addEventListener('click',async()=>{
-  const reason=prompt('Required review reason (at least 5 characters):');if(!reason||reason.trim().length<5)return;
+  const reason=prompt('Required review reason (at least 5 characters):');if(reason===null)return;
+  if(reason.trim().length<5)return note('Enter a review reason with at least 5 characters.','error');
   button.disabled=true;
   try{await api('/attendance/review',{method:'POST',body:JSON.stringify({id:button.dataset.review,decision:button.dataset.decision,reason})});note('Correction review recorded; not submitted to payroll.','success');await Promise.all([corrections(),notifications()])}catch(e){note(e.message,'error')}finally{button.disabled=false}
  }));
@@ -202,10 +350,12 @@ function currentPayPeriod(now=new Date()){
   payday:paydayDay.toLocaleDateString('en-US',{timeZone:'UTC',month:'long',day:'numeric',year:'numeric'})};
 }
 async function loadTimecard(){
+ const account=me;
  const period=currentPayPeriod();
  $('pay-period-label').textContent=period.label;
  $('payday-label').textContent='Scheduled payday: '+period.payday;
  const x=await api('/attendance/timecard?from='+encodeURIComponent(period.from)+'&to='+encodeURIComponent(period.to));
+ if(me!==account)return;
  const hours=x.totals.paidHours.toFixed(2);
  const lunch=(x.totals.unpaidLunchMinutes/60).toFixed(2);
  const overtime=(x.estimates.overtimeMinutes/60).toFixed(2);
@@ -217,11 +367,10 @@ async function loadTimecard(){
   const amount=document.createElement('strong');amount.textContent=value;
   card.append(title,amount);summary.append(card);
  }
- if(x.totals.incompleteShift){const warning=document.createElement('p');warning.className='hint';warning.textContent='An incomplete shift requires review.';summary.append(warning)}
- const disclaimer=document.createElement('p');disclaimer.className='hint timecard-disclaimer';disclaimer.textContent='Attendance estimates are preliminary and not an official payroll statement.';summary.append(disclaimer);
+ setStatusAlert('incomplete-shift','Timecard',x.totals.incompleteShift?'An incomplete shift requires review.':'');
 }
 $('correction-form').addEventListener('submit',async e=>{
- e.preventDefault();const site=selected();if(!site)return note('No assigned worksite','error');
+ e.preventDefault();const site=assignedSite;if(!site)return note('No worksite assigned.','error');
  const date=new Date($('correction-time').value);if(!Number.isFinite(date.getTime()))return note('Invalid correction date','error');
  const payload={type:$('correction-type').value,worksiteId:site.id,requestedAt:date.toISOString(),reason:$('correction-reason').value,source:'ONLINE',requestId:crypto.randomUUID()};
  try{await api('/attendance/requests',{method:'POST',body:JSON.stringify(payload)});e.target.reset();note('Correction submitted for supervisor review. No ADP punch was created.','success');await corrections()}catch(err){note(err.message,'error')}
@@ -233,12 +382,15 @@ $('schedule-form').addEventListener('submit',async e=>{
 });
 
 async function employees(){
+ const account=me;
  const {employees:items}=await api('/attendance/admin/employees');
+ if(me!==account)return;
+ if(me?.canManageWorksites)fillOptions($('worksite-employee'),items,'display_name','Choose an employee');
  $('employee-list').innerHTML=items.length?items.map(x=>'<div class="history-row"><div><strong>'+clean(x.display_name)+'</strong><small>'+clean(x.email||'No email')+' · '+clean(x.id)+'</small></div><span class="state">'+(x.active?'Active':'Inactive')+(x.is_supervisor?' · Supervisor':'')+'</span></div>').join(''):'<p class="hint">No employee records.</p>';
 }
 $('employee-refresh').addEventListener('click',()=>employees().catch(e=>note(e.message,'error')));
 $('employee-form').addEventListener('submit',async e=>{
- e.preventDefault();const site=selected();if(!site)return note('Choose worksite first','error');
+ e.preventDefault();const site=assignedSite;if(!site)return note('No worksite assigned.','error');
  try{const data=await api('/attendance/admin/employees',{method:'POST',body:JSON.stringify({name:$('employee-name-input').value,email:$('employee-email-input').value,role:$('employee-role-input').value,worksiteId:site.id})});e.target.reset();note('Employee staged INACTIVE ('+data.id+'). No invitation sent.','success');await employees()}catch(err){note(err.message,'error')}
 });
 $('assignment-form').addEventListener('submit',async e=>{
@@ -287,8 +439,6 @@ requestTabs.addEventListener('keydown',event=>{
  tab.focus();
 });
 
-const notificationToggle=$('notifications-toggle');
-const notificationPanel=$('notifications-panel');
 function closeNotifications(){
  notificationPanel.hidden=true;
  notificationToggle.setAttribute('aria-expanded','false');
@@ -297,12 +447,24 @@ notificationToggle.addEventListener('click',async()=>{
  const opening=notificationPanel.hidden;
  notificationPanel.hidden=!opening;
  notificationToggle.setAttribute('aria-expanded',String(opening));
- if(opening)notifications().catch(e=>note(e.message,'error'));
+ if(opening){
+  setUnread(false);
+  renderAlerts();
+  if(me)notifications().catch(e=>note(e.message,'error'));
+ }
 });
 document.addEventListener('click',event=>{
  if(!notificationPanel.hidden&&!notificationPanel.contains(event.target)&&!notificationToggle.contains(event.target))closeNotifications();
 });
 document.addEventListener('keydown',event=>{if(event.key==='Escape')closeNotifications()});
+$('app').addEventListener('invalid',event=>{
+ const field=event.target;
+ event.preventDefault();
+ if(field!==field.form?.querySelector('input:invalid,select:invalid'))return;
+ const label=field.labels[0]?.textContent;
+ note(label?label+': '+field.validationMessage:field.validationMessage,'error');
+ field.focus();
+},true);
 const screens=['clock','recent','timecard','settings'];
 let currentScreen='clock',lastMainScreen='clock';
 function showScreen(name){

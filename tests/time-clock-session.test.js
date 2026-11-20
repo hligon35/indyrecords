@@ -45,7 +45,11 @@ test('foreground refresh clears account data when Access redirects to login',asy
  assert.equal(get('app').hidden,true);
  assert.equal(get('attendance-history').textContent,'');
  assert.equal(get('sign-in').hidden,false);
- assert.match(get('notice').textContent,/ACCESS_LOGIN_REQUIRED/);
+ assert.equal(get('notifications-toggle').hidden,false);
+ get('notifications-toggle').click();
+ assert.match(get('notifications-list').textContent,/ACCESS_LOGIN_REQUIRED/);
+ assert.match(get('notifications-list').querySelector('time').dateTime,/Z$/);
+ assert.doesNotMatch(get('notifications-list').textContent,/not transmitted to payroll/);
 });
 
 test('an Access 401 can be retried and a verified but unprovisioned account gets different guidance',async t=>{
@@ -72,18 +76,85 @@ test('the preview location warning appears only in notifications while bypass is
   Response.json({role:'employee',previewLocationBypass:bypass}):null);
  await setImmediate();
  const get=id=>window.document.getElementById(id);
- assert.equal(get('notice').textContent,'');
+ assert.equal(get('notice').className,'visually-hidden');
  assert.equal(get('notifications-panel').hidden,true);
  get('notifications-toggle').click();
  assert.equal(get('notifications-panel').hidden,false);
- assert.equal(get('preview-warning').hidden,false);
- assert.match(get('preview-warning').textContent,/Location restrictions are disabled/);
+ const warning=get('notifications-list').querySelector('.alert-entry.warning');
+ assert.match(warning.textContent,/Location restrictions are disabled/);
+ assert.match(warning.querySelector('time').dateTime,/Z$/);
 
  bypass=false;
  get('settings-refresh').click();
  await setImmediate();
- assert.equal(get('notice').textContent,'');
- assert.equal(get('preview-warning').hidden,true);
+ assert.doesNotMatch(get('notifications-list').textContent,/Location restrictions are disabled/);
+});
+
+test('Clock shows an assigned site label and groups timestamped errors and server notifications',async t=>{
+ const window=openClock(t,url=>{
+  if(url==='/api/sites')return Response.json({sites:[]});
+  if(url==='/api/attendance/notifications')return Response.json({items:[
+   {id:'notification',event_kind:'REQUEST_APPROVED',detail:'Your request was approved.',created_at:'2026-11-19 17:00:00'}
+  ]});
+  return null;
+ });
+ await setImmediate();
+ const get=id=>window.document.getElementById(id);
+ assert.equal(get('site').tagName,'STRONG');
+ assert.equal(get('site').textContent,'No worksite assigned');
+ window.document.querySelector('[data-attendance="IN"]').click();
+ assert.equal(get('notifications-toggle').hasAttribute('data-unread'),true);
+ get('notifications-toggle').click();
+ assert.equal(get('notifications-toggle').hasAttribute('data-unread'),false);
+ const list=get('notifications-list');
+ assert.match(list.querySelector('.alert-entry.error').textContent,/No worksite is assigned/);
+ assert.ok(list.querySelector('time[datetime="2026-11-19T17:00:00.000Z"]'));
+ assert.match(list.textContent,/Your request was approved/);
+});
+
+test('only a left swipe past 30% deletes a persisted alert',async t=>{
+ const id='1491392a-83b0-43e6-9f08-5006157d07ff';
+ let deleted=false;
+ const window=openClock(t,(url,options)=>{
+  if(url==='/api/attendance/notifications/'+id){
+   assert.equal(options.method,'DELETE');
+   deleted=true;
+   return Response.json({deleted:true});
+  }
+  if(url==='/api/attendance/notifications')return Response.json({items:deleted?[]:[
+   {id,event_kind:'APPROVED',detail:'Your request was approved.',created_at:'2026-11-19 17:00:00'}
+  ]});
+  return null;
+ });
+ await setImmediate();
+ const document=window.document;
+ document.getElementById('notifications-toggle').click();
+ await setImmediate();
+ const row=document.querySelector('.alert-swipe');
+ const entry=row.querySelector('.alert-entry');
+ row.getBoundingClientRect=()=>({width:200});
+ row.setPointerCapture=()=>{};
+ const dispatch=(type,x,y)=>entry.dispatchEvent(Object.assign(new window.MouseEvent(type,{
+  bubbles:true,clientX:x,clientY:y
+ }),{isPrimary:true,pointerId:1}));
+ function drag(x,y,end='pointerup'){
+  dispatch('pointerdown',180,10);
+  dispatch('pointermove',x,y);
+  dispatch(end,x,y);
+ }
+ for(const [x,y,end] of [[120,10],[260,10],[100,100],[100,10,'pointercancel']]){
+  drag(x,y,end);
+  assert.equal(deleted,false);
+  assert.equal(row.isConnected,true);
+  assert.equal(entry.style.transform,'');
+ }
+ drag(119,10);
+ await setImmediate();
+ assert.equal(deleted,true);
+ assert.match(document.getElementById('notifications-list').textContent,/No alerts/);
+ document.getElementById('notifications-refresh').click();
+ await setImmediate();
+ assert.match(document.getElementById('notifications-list').textContent,/No alerts/);
 });
 
 test('Request tabs separate a draft correction from the employee history',async t=>{

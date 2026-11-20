@@ -11,7 +11,7 @@
 .app-header h1{font-size:19px;line-height:1.2;font-weight:800;margin:0;text-align:center}
 .settings-toggle{position:absolute;right:10px;top:10px;width:46px;height:46px;padding:10px;border:0;border-radius:12px;background:transparent;color:#10253c;display:grid;place-items:center}
 .settings-toggle[aria-expanded="true"]{background:#e6f3f3;color:#087c7d}
-.greeting{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;margin:12px 0 24px;gap:5px}
+.greeting{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;margin:0 0 10px;gap:3px}
 .greeting .eyebrow{font-size:13px;font-weight:650;letter-spacing:0;color:#617387}
 .greeting h2{font-size:28px;line-height:1.2;letter-spacing:-.5px;margin:0}
 .screen[hidden],#app[hidden],#supervisor-panel[hidden],#admin[hidden],#sign-in[hidden],#retry-account[hidden]{display:none!important}
@@ -22,10 +22,11 @@
 .nav-item{min-height:54px;border:0;background:transparent;color:#617387;display:flex;flex-direction:column;gap:3px;align-items:center;justify-content:center;border-radius:11px;font-size:12px;font-weight:750;padding:7px}
 .nav-item span{font-size:25px;line-height:24px}
 .nav-item.active,.nav-item[aria-current="page"]{background:#e5f3f2;color:#087c7d}
-.payroll-status{margin:8px 0 0;font-size:11px;text-align:center}
-.clock-card{margin-bottom:0}
-#notice:empty{display:none}
-#notice:not(.error):not(.success){background:#e7eef4}
+.clock-card{margin:0}
+.clock-card .clock{padding:8px 0 0}
+.clock-card .buttons{margin-top:12px}
+.worksite-label{display:grid;gap:3px;text-align:center}
+.visually-hidden{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 @media(max-width:420px){.shell{padding-inline:13px}.app-header{margin:0 -13px 18px}.greeting h2{font-size:25px}.clock{font-size:38px}}
 
 
@@ -49,24 +50,49 @@ button:not(.settings-toggle):not(.nav-item):has(>.material-symbols-rounded){disp
 .notifications-toggle{position:absolute;left:10px;top:10px;width:46px;height:46px;min-height:46px;padding:9px;border:0;border-radius:12px;background:transparent;color:#10253c;display:grid;place-items:center}
 .notifications-toggle .material-symbols-rounded{font-size:27px}
 .notifications-toggle[aria-expanded="true"]{background:#e5f3f2;color:#087c7d}
+.notifications-toggle[data-unread]::after{content:"";position:absolute;top:8px;right:9px;width:10px;height:10px;border:2px solid #fff;border-radius:50%;background:#b93943}
 .notifications-toggle[hidden],.notifications-panel[hidden]{display:none!important}
 .notifications-panel{position:absolute;z-index:30;left:max(12px,calc((100% - 740px)/2 + 16px));right:max(12px,calc((100% - 740px)/2 + 16px));top:67px;max-height:min(55vh,420px);overflow-y:auto;background:#fff;border:1px solid #dbe3e9;border-radius:14px;padding:17px;box-shadow:0 12px 30px #10253c24}
 .notifications-panel .heading{margin-bottom:12px}.notifications-panel h2{font-size:16px;margin:0}
-.preview-warning{
-  margin:0;
-  padding:10px 12px;
-  background:#fff4da;
-  color:#694507;
+.alert-swipe{
+  position:relative;
+  margin-bottom:6px;
+  overflow:hidden;
   border-radius:9px;
-  font-size:12px;
-  line-height:1.5;
+  background:#b93943;
+  touch-action:pan-y pinch-zoom;
 }
+.alert-swipe:last-child{margin-bottom:0}
+.alert-swipe-action{position:absolute;inset:0;display:grid;align-items:center;justify-content:end;padding:12px;color:white;font-size:13px;font-weight:750}
+.alert-entry{
+  position:relative;
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  align-items:center;
+  gap:6px;
+  padding:9px 10px 9px 12px;
+  background:#edf3f8;
+  font-size:13px;
+  line-height:1.4;
+  transition:transform .15s ease-out;
+}
+.alert-swipe.dragging .alert-entry{transition:none;user-select:none}
+.alert-entry p{margin:2px 0 0}
+.alert-entry time{display:block;margin-top:4px;font-size:11px;color:#52677c}
+.alert-delete{display:grid;place-items:center;min-height:44px;width:44px;padding:0;border:0;background:transparent;color:#52677c}
+.alert-delete:focus-visible{outline-offset:-3px}
+.alert-entry.warning{background:#fff4da;color:#694507}
+.alert-entry.error{background:#fee2e2;color:#991b1b}
+.alert-entry.success{background:#dcfce7;color:#166534}
+@media(prefers-reduced-motion:reduce){.alert-entry{transition:none}}
 .icon-button{width:44px;height:44px;min-height:44px;display:inline-grid!important;place-items:center!important;padding:8px;border:1px solid #dbe3e9;border-radius:11px;background:#fff;flex-shrink:0}
+.icon-button[hidden]{display:none!important}
 .icon-button .material-symbols-rounded{font-size:23px}
 .request-tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:10px}
 .request-tabs [aria-selected="true"]{background:#e5f3f2;border-color:#a5cfcc;color:#086c6d}
 #recent-screen > .card{margin:0}
-#recent-screen form,#settings-screen form{display:flex;flex-direction:column;gap:3px;margin:16px 0 22px}
+#recent-screen form,#settings-screen form{display:grid;grid-template-columns:minmax(0,1fr);gap:3px;margin:16px 0 22px}
+#recent-screen form > *,#settings-screen form > *{min-inline-size:0}
 #recent-screen form{margin:10px 0 0}
 #recent-screen form button,#settings-screen form button{margin-top:17px;min-height:48px}
 .screen-toolbar{
@@ -97,7 +123,6 @@ button:not(.settings-toggle):not(.nav-item):has(>.material-symbols-rounded){disp
 }
 .timecard-overview .metric-label{color:#617387;font-size:12px;line-height:1.25}
 .timecard-overview .metric strong{font-size:clamp(15px,4.5vw,22px);line-height:1.2;font-variant-numeric:tabular-nums}
-.timecard-overview > .hint{grid-column:1/-1;margin:2px 0 0;text-align:center}
 #attendance-history{margin-top:12px}
 #settings-screen>.card{margin:12px 0 0}
 #settings-screen>.card:first-child{margin-top:0}
@@ -117,14 +142,14 @@ button:not(.settings-toggle):not(.nav-item):has(>.material-symbols-rounded){disp
 .settings-fields h2{margin-top:20px}
 #settings-screen .account-card .heading{gap:8px}
 #settings-screen .account-card .icon-heading{font-size:15px;min-width:0}
-#settings-screen .account-card>.hint{margin:10px 0 0;line-height:1.6;text-align:center}
 
 .card, .notifications-panel{overflow-wrap:anywhere}
 .card button, .card input, .card select{min-width:0;max-width:100%}
 .card button > span:not(.material-symbols-rounded){min-width:0}
 .card input[type="range"]{margin-inline:0}
-.card input[type="datetime-local"]{display:block}
-.card input[type="datetime-local"]::-webkit-date-and-time-value{text-align:start}
+.card input[type="datetime-local"]{display:block;inline-size:100%;min-inline-size:0;max-inline-size:100%;-webkit-appearance:none;appearance:none}
+.card input[type="datetime-local"]::-webkit-date-and-time-value{min-inline-size:0;text-align:start}
+.card input[type="datetime-local"]::-webkit-datetime-edit{min-inline-size:0;padding:0}
 .columns{grid-template-columns:repeat(2,minmax(0,1fr))}
 .history-row > *{min-width:0}
 .history-row > div:has(>button){display:flex;flex-wrap:wrap;align-content:start;justify-content:flex-end;gap:6px}
@@ -135,5 +160,6 @@ button:not(.settings-toggle):not(.nav-item):has(>.material-symbols-rounded){disp
   .screen-toolbar h2{font-size:18px}
   .notifications-panel{left:9px;right:9px}
   .settings-fields{padding:2px 1px 16px}
+  .card input[type="datetime-local"]{padding-inline:8px}
   #correction-list .history-row:has(button){flex-direction:column;gap:8px}
 }
