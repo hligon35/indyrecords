@@ -7,6 +7,18 @@
   <div id="notifications-list" class="history"></div>
 </aside>
 <div id="notice" class="visually-hidden" role="status"></div>
+<div id="punch-dialog" class="punch-dialog" hidden>
+ <div class="punch-dialog-backdrop"></div>
+ <section class="punch-dialog-card" role="dialog" aria-modal="true" aria-labelledby="punch-dialog-title" aria-describedby="punch-dialog-message" tabindex="-1">
+  <span id="punch-dialog-icon" class="material-symbols-rounded punch-dialog-symbol" aria-hidden="true">schedule</span>
+  <h2 id="punch-dialog-title">Confirm punch</h2>
+  <p id="punch-dialog-message"></p>
+  <div class="punch-dialog-actions">
+   <button id="punch-dialog-cancel" type="button">Cancel</button>
+   <button id="punch-dialog-confirm" type="button" class="primary">Confirm</button>
+  </div>
+ </section>
+</div>
 <button id="sign-in" type="button" hidden>Open sign-in</button><button id="retry-account" type="button" hidden>Retry connection</button><span id="connection" hidden></span>
 <section id="app" hidden>
 <section id="clock-screen" class="screen" aria-labelledby="screen-title"><div class="greeting"><p class="eyebrow" id="greeting-time">Good afternoon,</p><h2 id="greeting-name">User!</h2><span id="employee-name" hidden></span><span id="mode" hidden></span></div>
