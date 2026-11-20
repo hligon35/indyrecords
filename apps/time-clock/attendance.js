@@ -86,6 +86,20 @@ export async function attendanceRoute(request,env,actor,path){
   if(existing)return existing.event_type===data.type?ok({event:existing,duplicate:true}):fail('IDEMPOTENCY_CONFLICT',409);
   const site=await db.prepare('SELECT s.* FROM worksites s JOIN assignments a ON a.worksite_id=s.id WHERE a.employee_id=? AND s.id=? AND s.enabled=1').bind(actor.id,data.worksiteId).first();
   if(!site)return fail('WORKSITE_NOT_ASSIGNED',403);
+  // Enforce punch order on the server; a client confirmation cannot substitute
+  // for an authenticated, authoritative attendance state check.
+  const last=await db.prepare('SELECT event_type FROM attendance_events WHERE employee_id=? ORDER BY occurred_at DESC, rowid DESC LIMIT 1').bind(actor.id).first();
+  const prior=last?.event_type??null;
+  const active=prior!==null&&prior!=='OUT';
+  const invalidOrder=(
+    (data.type==='IN'&&active) ||
+    (data.type==='OUT'&&!active) ||
+    (data.type==='LUNCH_START'&&(!active||prior==='LUNCH_START'||prior==='PAID_BREAK_START')) ||
+    (data.type==='LUNCH_END'&&prior!=='LUNCH_START') ||
+    (data.type==='PAID_BREAK_START'&&(!active||prior==='LUNCH_START'||prior==='PAID_BREAK_START')) ||
+    (data.type==='PAID_BREAK_END'&&prior!=='PAID_BREAK_START')
+  );
+  if(invalidOrder)return fail('INVALID_PUNCH_SEQUENCE',409);
   const result=checkPunchLocation({site,location:data.location,env,verify:verifyGeofence});
   if(!result.allowed){await audit(db,actor.id,'ATTENDANCE_GEOFENCE_REJECTED',site.id,{reason:result.reason,distanceFeet:result.distanceFeet??null,accuracyFeet:result.accuracyFeet??null,checkedAt:new Date().toISOString()});return ok({error:result.reason,mayRequestCorrection:true},403)}
   const id=uuid(),occurred=new Date().toISOString();
