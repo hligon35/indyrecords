@@ -25,6 +25,9 @@ ACCESS_AUDIENCE = "4d18ac57daf86991af2a46cd706aebc6fd4bfe8d4b911d5405a6aaa549cb0
 # Do not enable until root From domain alphazonelabs.com is verified in Resend.
 # Requested DNS/sending subdomain is mail.alphazonelabs.com, but the From address uses alphazonelabs.com.
 
+[triggers]
+crons = ["*/10 * * * *"]
+
 # Publish the standalone PWA and Worker at the same origin.
 # Restrict the entire hostname with Cloudflare Access before live use.
 [assets]

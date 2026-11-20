@@ -1,5 +1,7 @@
 import {validateRadius,validateCoordinate,validatePunchType,verifyGeofence} from '../../packages/time-clock/policy.js';
 import {attendanceRoute} from './attendance.js';
+import {runAttendanceJobs} from './attendance-jobs.js';
+import {attendanceGateway,reconcileAttendancePunch,submitAttendancePunch} from './punch-provider.js';
 import {verifyAccess} from './access.js';
 import {checkPunchLocation,previewLocationBypass} from '../../packages/time-clock/preview-policy.js';
 const response=(data,status=200)=>new Response(JSON.stringify(data),{status,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'}});
@@ -7,16 +9,11 @@ const error=(code,status=400)=>response({error:code},status);
 const MAX_BODY=4096;
 async function body(request){if(Number(request.headers.get('content-length'))>MAX_BODY)throw Error('PAYLOAD_TOO_LARGE');const raw=await request.text();if(raw.length>MAX_BODY)throw Error('PAYLOAD_TOO_LARGE');return JSON.parse(raw)}
 async function audit(db,actor,operation,id,detail){await db.prepare('INSERT INTO audit_log(id,actor_id,operation,resource_id,detail) VALUES(?,?,?,?,?)').bind(crypto.randomUUID(),actor,operation,id,JSON.stringify(detail).slice(0,1000)).run();}
-async function sendProvider(env,employee,type,site,punchId){
+async function sendProvider(env,employee,type,site,punchId,occurredAt){
  if(env.ADP_MODE!=='gateway')return {state:'SIMULATED',message:'Demonstration only. Not sent to ADP.'};
  if(!env.ADP_GATEWAY_URL||!env.ADP_GATEWAY_TOKEN||!employee.adp_worker_id)throw Error('ADP_NOT_CONFIGURED');
- const url=new URL(env.ADP_GATEWAY_URL);
- if(url.protocol!=='https:'||!env.ADP_GATEWAY_ALLOWED_HOST||url.hostname!==env.ADP_GATEWAY_ALLOWED_HOST)throw Error('ADP_GATEWAY_UNTRUSTED');
- const result=await fetch(url.toString(),{method:'POST',headers:{authorization:'Bearer '+env.ADP_GATEWAY_TOKEN,'content-type':'application/json','idempotency-key':punchId},body:JSON.stringify({eventId:punchId,workerId:employee.adp_worker_id,type,worksiteId:site.id})});
- if(!result.ok)throw Error('ADP_GATEWAY_REJECTED');
- const data=await result.json();
- if(!['PENDING','CONFIRMED'].includes(data.state))throw Error('ADP_GATEWAY_INVALID_RESPONSE');
- return {state:data.state,ref:String(data.reference||'').slice(0,120),message:'Submission received; follow-up verification required if pending.'};
+ const data=await submitAttendancePunch(attendanceGateway(env),{id:punchId,type,worksiteId:site.id,occurred_at:occurredAt},employee);
+ return {state:data.state,ref:data.reference,message:'Submission received; follow-up verification required if pending.'};
 }
 export default {async fetch(request,env){
  const url=new URL(request.url),path=url.pathname;
@@ -50,19 +47,13 @@ export default {async fetch(request,env){
  if(!punch)return error('NOT_FOUND',404);
  if(punch.provider_state!=='PENDING'||env.ADP_MODE!=='gateway')return response({state:punch.provider_state,message:punch.provider_message});
  if(!env.ADP_GATEWAY_URL||!env.ADP_GATEWAY_TOKEN||!env.ADP_GATEWAY_ALLOWED_HOST)return error('ADP_NOT_CONFIGURED',503);
- const endpoint=new URL(env.ADP_GATEWAY_URL);
- if(endpoint.protocol!=='https:'||endpoint.hostname!==env.ADP_GATEWAY_ALLOWED_HOST)return error('ADP_GATEWAY_UNTRUSTED',503);
- endpoint.searchParams.set('eventId',punch.id);
  try{
- const upstream=await fetch(endpoint.toString(),{headers:{authorization:'Bearer '+env.ADP_GATEWAY_TOKEN}});
- if(!upstream.ok)return error('PROVIDER_STATUS_UNAVAILABLE',502);
- const data=await upstream.json();
- if(!['PENDING','CONFIRMED','FAILED'].includes(data.state))return error('INVALID_PROVIDER_STATUS',502);
- if(data.state!=='PENDING'){
-  await env.DB.prepare('UPDATE punches SET provider_state=?,provider_message=? WHERE id=? AND provider_state=?').bind(data.state,'Provider status verified by configured gateway.',punch.id,'PENDING').run();
-  await audit(env.DB,employee.id,'PUNCH_RECONCILED',punch.id,{state:data.state});
+ const state=await reconcileAttendancePunch(attendanceGateway(env),punchId);
+ if(state!=='PENDING'){
+  await env.DB.prepare('UPDATE punches SET provider_state=?,provider_message=? WHERE id=? AND provider_state=?').bind(state,'Provider status verified by configured gateway.',punch.id,'PENDING').run();
+  await audit(env.DB,employee.id,'PUNCH_RECONCILED',punchId,{state});
  }
- return response({state:data.state,message:data.state==='PENDING'?'Awaiting ADP processing.':'Gateway reported '+data.state});
+ return response({state,message:state==='PENDING'?'Awaiting ADP processing.':'Gateway reported '+state});
  }catch{return error('PROVIDER_STATUS_UNAVAILABLE',502)}
  }
  if(path==='/api/history'&&request.method==='GET'){
@@ -81,7 +72,7 @@ export default {async fetch(request,env){
  const punchId=crypto.randomUUID(), now=new Date().toISOString();
  // Persist first. A transport failure must never cause an untracked repeated payroll submission.
  await env.DB.prepare('INSERT INTO punches(id,employee_id,worksite_id,type,client_request_id,submitted_at,distance_feet,accuracy_feet,provider_state) VALUES(?,?,?,?,?,?,?,?,?)').bind(punchId,employee.id,site.id,data.type,data.requestId,now,check.distanceFeet??null,check.accuracyFeet??null,'UNKNOWN').run();
- let provider;try{provider=await sendProvider(env,employee,data.type,site,punchId)}catch(e){provider={state:'UNKNOWN',message:'Provider result uncertain. Contact a supervisor before retrying.'}}
+ let provider;try{provider=await sendProvider(env,employee,data.type,site,punchId,now)}catch(e){provider={state:'UNKNOWN',message:'Provider result uncertain. Contact a supervisor before retrying.'}}
  await env.DB.prepare('UPDATE punches SET provider_state=?,provider_ref=?,provider_message=? WHERE id=?').bind(provider.state,provider.ref||null,provider.message,punchId).run();
  await audit(env.DB,employee.id,'PUNCH_SUBMITTED',punchId,{state:provider.state,worksiteId:site.id,type:data.type});
  return response({punch:{id:punchId,type:data.type,provider_state:provider.state,provider_message:provider.message,submitted_at:now}},provider.state==='UNKNOWN'?202:201);
@@ -117,4 +108,4 @@ export default {async fetch(request,env){
  return response({created:result.meta?.changes===1});
  }
  return error('NOT_FOUND',404);
- }};
+ },scheduled(controller,env,context){context.waitUntil(runAttendanceJobs(env,controller.scheduledTime));}};

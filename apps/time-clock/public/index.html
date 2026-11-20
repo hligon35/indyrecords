@@ -40,8 +40,10 @@
       </select>
       <label for="correction-time">Actual local time</label>
       <input id="correction-time" type="datetime-local" required>
+      <div id="correction-shift-field" hidden><label for="correction-shift">Related shift (optional)</label><select id="correction-shift"></select></div>
       <label for="correction-reason">Reason (at least 10 characters)</label>
       <input id="correction-reason" required minlength="10" maxlength="500" placeholder="Explain the missing punch">
+      <label class="check"><input type="checkbox" id="correction-gps"> GPS failure or approved off-site work</label>
       <button class="primary" type="submit"><span class="material-symbols-rounded" aria-hidden="true">send</span><span>Submit for approval</span></button>
     </form>
   </section>
@@ -50,8 +52,34 @@
     <div id="my-corrections" class="history"></div>
   </section>
 </section>
-<section id="timecard-screen" class="screen" hidden><div class="screen-toolbar"><div><p class="eyebrow">CURRENT PAY PERIOD</p><h2 id="pay-period-label"></h2><p id="payday-label" class="hint"></p></div><button id="attendance-refresh" type="button" class="icon-button" title="Refresh attendance" aria-label="Refresh attendance"><span class="material-symbols-rounded" aria-hidden="true">refresh</span></button></div><section class="card timecard-card"><div id="timecard-summary" class="timecard-overview" aria-live="polite"></div><div id="attendance-history" class="history"></div></section></section>
+<section id="timecard-screen" class="screen" hidden><div class="screen-toolbar"><div><p class="eyebrow">CURRENT PAY PERIOD</p><h2 id="pay-period-label"></h2><p id="payday-label" class="hint"></p></div><button id="attendance-refresh" type="button" class="icon-button" title="Refresh attendance" aria-label="Refresh attendance"><span class="material-symbols-rounded" aria-hidden="true">refresh</span></button></div><section class="card timecard-card"><div id="timecard-summary" class="timecard-overview" aria-live="polite"></div><details class="settings-section" id="timecard-day-panel" hidden><summary>Daily and weekly totals</summary><div id="timecard-days"></div></details><div id="attendance-history" class="history"></div></section></section>
 <section id="settings-screen" class="screen" hidden><div class="card account-card"><div class="heading"><h2 class="icon-heading"><span class="material-symbols-rounded" aria-hidden="true">manage_accounts</span><span>Account preferences</span></h2><button id="settings-refresh" type="button" class="icon-button" title="Refresh account" aria-label="Refresh account"><span class="material-symbols-rounded" aria-hidden="true">refresh</span></button></div></div>
+<section class="card" id="attendance-report-panel" hidden>
+  <details id="attendance-report" class="settings-section">
+    <summary><span class="material-symbols-rounded" aria-hidden="true">assessment</span><span>Attendance report</span><span class="material-symbols-rounded" aria-hidden="true">expand_more</span></summary>
+    <div class="settings-fields">
+      <form id="attendance-report-filter">
+        <label for="attendance-report-name">Employee name</label>
+        <input id="attendance-report-name" type="search" maxlength="120">
+        <button type="submit">Filter report</button>
+      </form>
+      <p id="attendance-report-status" class="hint" aria-live="polite"></p>
+      <div id="attendance-report-rows" class="history"></div>
+      <button type="button" id="attendance-report-back" hidden>Back to employees</button>
+      <button type="button" id="attendance-report-more" hidden>More employees</button>
+    </div>
+  </details>
+</section>
+<section class="card">
+  <details id="email-preferences" class="settings-section">
+    <summary><span class="material-symbols-rounded" aria-hidden="true">mail</span><span>Email alerts</span><span class="material-symbols-rounded" aria-hidden="true">expand_more</span></summary>
+    <div class="settings-fields">
+      <label class="check"><input type="checkbox" id="attendance-email" disabled> Receive attendance email alerts</label>
+      <p id="attendance-delivery-status" class="hint" hidden></p>
+    </div>
+  </details>
+</section>
+<section class="card"><button type="button" id="access-sign-out">Sign out of Cloudflare Access</button></section>
 <section class="card" id="supervisor-panel" hidden><details class="settings-section"><summary><span class="material-symbols-rounded" aria-hidden="true">supervisor_account</span><span>Supervisor corrections</span><span class="material-symbols-rounded" aria-hidden="true">expand_more</span></summary><div class="settings-fields"><p class="hint">Review requests only for assigned employees. Approval does not certify payroll submission.</p><div id="correction-list" class="history"></div></div></details><details class="settings-section"><summary><span class="material-symbols-rounded" aria-hidden="true">calendar_month</span><span>Schedule assignment</span><span class="material-symbols-rounded" aria-hidden="true">expand_more</span></summary><div class="settings-fields"><form id="schedule-form"><label for="schedule-employee">Employee internal ID</label><input id="schedule-employee" required placeholder="Assigned employee ID"><label for="schedule-start">Start</label><input id="schedule-start" type="datetime-local" required><label for="schedule-end">End</label><input id="schedule-end" type="datetime-local" required><button class="primary" type="submit"><span class="material-symbols-rounded" aria-hidden="true">event_available</span><span>Add scheduled shift</span></button></form></div></details></section>
 <section class="card" id="admin" hidden><details id="worksite-settings" class="settings-section" hidden><summary><span class="material-symbols-rounded" aria-hidden="true">location_on</span><span>Worksite settings</span><span class="material-symbols-rounded" aria-hidden="true">expand_more</span></summary><div class="settings-fields"><p class="hint">Changes apply to subsequent punches. Obtain the facility's approved GPS coordinates before enabling live submissions.</p><form id="site-form"><label for="managed-site">Worksite</label><select id="managed-site" required></select><label for="site-name">Worksite name</label><input id="site-name" maxlength="120" required><div class="columns"><div><label for="latitude">Latitude</label><input id="latitude" type="number" step="any" min="-90" max="90" required></div><div><label for="longitude">Longitude</label><input id="longitude" type="number" step="any" min="-180" max="180" required></div></div><label for="radius">Allowed radius: <output id="radius-output">500 feet</output></label><input id="radius" type="range" min="100" max="2000" step="50" value="500"><label class="check"><input id="geofence-enabled" type="checkbox" checked> Require geofence verification</label><button class="primary" type="submit"><span class="material-symbols-rounded" aria-hidden="true">save</span><span>Save worksite settings</span></button></form>
 <form id="worksite-assignment-form"><h2>Change assigned worksite</h2><label for="worksite-employee">Employee</label><select id="worksite-employee" required></select><label for="worksite-assignment">New worksite</label><select id="worksite-assignment" required></select><button class="primary" type="submit">Save assignment</button></form></div></details><details class="settings-section"><summary><span class="material-symbols-rounded" aria-hidden="true">groups</span><span>Employee roster</span><span class="material-symbols-rounded" aria-hidden="true">expand_more</span></summary><div class="settings-fields"><p class="hint">New employees are created inactive. No invitations are delivered until the managed identity provider has been configured.</p>
@@ -68,4 +96,34 @@
 <button type="button" data-screen="recent" class="nav-item"><span class="material-symbols-rounded" aria-hidden="true">edit_note</span><span>Request</span></button>
 </nav>
 </section>
+<div id="offline-shell" hidden>
+  <details id="offline-requests" class="offline-requests" hidden>
+    <summary>Offline requests</summary>
+    <form id="offline-unlock">
+      <p class="hint">Save corrections on this device and submit them for review after signing in online.</p>
+      <label for="offline-id">Employee ID</label>
+      <input id="offline-id" required maxlength="120" autocomplete="off">
+      <label for="offline-passphrase">Device passphrase</label>
+      <input id="offline-passphrase" type="password" required maxlength="200" autocomplete="off">
+      <button type="submit">Unlock or set up offline requests</button>
+    </form>
+    <form id="offline-form" hidden>
+      <label for="offline-event">Event type</label>
+      <select id="offline-event">
+        <option value="IN">Clock In</option><option value="OUT">Clock Out</option>
+        <option value="LUNCH_START">Start Lunch</option><option value="LUNCH_END">End Lunch</option>
+        <option value="PAID_BREAK_START">Start Paid Break</option><option value="PAID_BREAK_END">End Paid Break</option>
+      </select>
+      <label for="offline-time">Actual local time</label>
+      <input id="offline-time" type="datetime-local" required>
+      <label for="offline-reason">Reason (at least 10 characters)</label>
+      <input id="offline-reason" minlength="10" maxlength="500" required>
+      <button type="submit">Save offline request</button>
+      <button type="button" id="offline-sync" disabled>Submit saved requests</button>
+      <button type="button" id="offline-lock">Lock offline requests</button>
+      <p id="offline-status" class="hint" aria-live="polite"></p>
+      <ul id="offline-drafts"></ul>
+    </form>
+  </details>
+</div>
 <footer>Indiana Records Managers · Time Clock</footer></main><script type="module" src="./app.js"></script></body></html>

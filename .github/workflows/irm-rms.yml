@@ -20,6 +20,9 @@ jobs:
       - run: npx wrangler deploy --dry-run
         env:
           WRANGLER_SEND_METRICS: 'false'
+      - run: npx wrangler deploy --dry-run --config apps/time-clock/wrangler.toml
+        env:
+          WRANGLER_SEND_METRICS: 'false'
   android-bundle:
     runs-on: ubuntu-latest
     defaults:

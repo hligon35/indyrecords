@@ -92,6 +92,7 @@ button:not(.settings-toggle):not(.nav-item):has(>.material-symbols-rounded){disp
 .request-tabs [aria-selected="true"]{background:#e5f3f2;border-color:#a5cfcc;color:#086c6d}
 #recent-screen > .card{margin:0}
 #recent-screen form,#settings-screen form{display:grid;grid-template-columns:minmax(0,1fr);gap:3px;margin:16px 0 22px}
+#settings-screen form[hidden]{display:none}
 #recent-screen form > *,#settings-screen form > *{min-inline-size:0}
 #recent-screen form{margin:10px 0 0}
 #recent-screen form button,#settings-screen form button{margin-top:17px;min-height:48px}
@@ -154,6 +155,21 @@ button:not(.settings-toggle):not(.nav-item):has(>.material-symbols-rounded){disp
 .history-row > *{min-width:0}
 .history-row > div:has(>button){display:flex;flex-wrap:wrap;align-content:start;justify-content:flex-end;gap:6px}
 .history > .hint:only-child{margin:0;text-align:center}
+.offline-requests{margin-top:14px}
+.offline-requests summary{padding:10px 0;font-size:14px;font-weight:750;cursor:pointer}
+.offline-requests form:not([hidden]){display:grid;grid-template-columns:minmax(0,1fr);gap:6px}
+.offline-requests form[hidden],.offline-requests[hidden]{display:none!important}
+.offline-requests #offline-drafts{margin:0;padding-left:20px;font-size:13px}
+.offline-requests #offline-drafts li{margin:8px 0;overflow-wrap:anywhere}
+.offline-requests #offline-drafts p{margin:3px 0}
+.offline-requests + footer{margin-top:8px}
+#offline-shell:not([hidden]){padding:12px;background:white;border:1px solid #dbe3e9;border-radius:12px;margin-top:12px}
+.report-row{flex-wrap:wrap}
+.report-row h3{font-size:14px;margin:0}
+.report-row button{min-height:44px}
+.attendance-report-section{flex:1 0 100%}
+.attendance-report-section li{font-size:13px;margin:3px 0}
+#timecard-days ul{padding-left:20px;font-size:13px}
 .screen .history-row:last-child{padding-bottom:0}
 
 @media(max-width:420px){

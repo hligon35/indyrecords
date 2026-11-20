@@ -12,9 +12,10 @@ const responses={
  '/api/attendance/profile':{role:'employee'},
  '/api/sites':{sites:[{id:'site',name:'Assigned worksite'}]},
  '/api/attendance/events':{events:[{event_type:'IN',occurred_at:'2026-01-01',provider_state:'SIMULATED'}]},
- '/api/attendance/timecard':{totals:{paidHours:0,unpaidLunchMinutes:0},estimates:{overtimeMinutes:0}},
+ '/api/attendance/timecard':{payPeriod:{label:'Nov 8 – Nov 21, 2026',payday:'November 27, 2026'},totals:{paidHours:0,unpaidLunchMinutes:0},estimates:{overtimeMinutes:0}},
  '/api/attendance/notifications':{items:[]},
- '/api/attendance/requests':{requests:[]}
+ '/api/attendance/requests':{requests:[]},
+ '/api/attendance/schedules':{schedules:[]}
 };
 
 function openClock(t, fetchResponse) {
