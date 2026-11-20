@@ -93,8 +93,74 @@ function getLocation(){
   navigator.geolocation.getCurrentPosition(p=>resolve({latitude:p.coords.latitude,longitude:p.coords.longitude,accuracyMeters:p.coords.accuracy,capturedAt:p.timestamp}),e=>reject(Error(e.code===1?'Location permission is required. Enable location access and retry.':'Could not verify a current location. Move into open space and retry.')),{enableHighAccuracy:true,maximumAge:0,timeout:15000});
  });
 }
+const PUNCH_ACTIONS={
+ IN:{label:'Clock In',icon:'login'},
+ OUT:{label:'Clock Out',icon:'logout'},
+ LUNCH_START:{label:'Start Lunch',icon:'restaurant'},
+ LUNCH_END:{label:'End Lunch',icon:'restaurant_menu'},
+ PAID_BREAK_START:{label:'Start Paid Break',icon:'coffee'},
+ PAID_BREAK_END:{label:'End Paid Break',icon:'free_breakfast'}
+};
+let pendingPunchAction=null;
+let dialogRestoreFocus=null;
+function closePunchDialog(){
+ $('punch-dialog').hidden=true;
+ pendingPunchAction=null;
+ if(dialogRestoreFocus?.isConnected)dialogRestoreFocus.focus();
+ dialogRestoreFocus=null;
+}
+function showPunchDialog({title,message,icon='error',confirmAction=null}){
+ dialogRestoreFocus=document.activeElement;
+ pendingPunchAction=confirmAction;
+ $('punch-dialog-title').textContent=title;
+ $('punch-dialog-message').textContent=message;
+ $('punch-dialog-icon').textContent=icon;
+ $('punch-dialog-confirm').hidden=!confirmAction;
+ $('punch-dialog-cancel').textContent=confirmAction?'Cancel':'Close';
+ $('punch-dialog').hidden=false;
+ $('punch-dialog-card').focus();
+}
+$('punch-dialog-cancel').addEventListener('click',closePunchDialog);
+$('punch-dialog-confirm').addEventListener('click',()=>{
+ const action=pendingPunchAction;
+ closePunchDialog();
+ if(action)punch(action);
+});
+$('punch-dialog').addEventListener('keydown',event=>{
+ if(event.key==='Escape'){event.preventDefault();closePunchDialog()}
+ if(event.key==='Tab'){
+  const actions=[...$('punch-dialog').querySelectorAll('button:not([hidden])')];
+  if(event.shiftKey&&document.activeElement===actions[0]){event.preventDefault();actions.at(-1).focus()}
+  else if(!event.shiftKey&&document.activeElement===actions.at(-1)){event.preventDefault();actions[0].focus()}
+ }
+});
+async function requestPunch(type){
+ if(busy||!me)return;
+ const action=PUNCH_ACTIONS[type];
+ if(!action)return;
+ try{
+  const {events}=await api('/attendance/events');
+  const last=events?.[0]?.event_type??null;
+  const active=last!==null&&last!=='OUT';
+  const error=(
+   (type==='IN'&&active)?'You are already clocked in.':
+   (type==='OUT'&&!active)?'You must clock in before clocking out.':
+   ((type==='LUNCH_START'||type==='PAID_BREAK_START')&&!active)?'You must clock in before starting lunch or a paid break.':
+   (type==='LUNCH_START'&&last==='LUNCH_START')?'You are already on lunch.':
+   (type==='LUNCH_END'&&last!=='LUNCH_START')?'You must start lunch before ending it.':
+   (type==='PAID_BREAK_START'&&last==='PAID_BREAK_START')?'You are already on a paid break.':
+   (type==='PAID_BREAK_END'&&last!=='PAID_BREAK_START')?'You must start a paid break before ending it.':
+   ((type==='LUNCH_START'&&last==='PAID_BREAK_START')||(type==='PAID_BREAK_START'&&last==='LUNCH_START'))?'End your current break before starting another.':null
+  );
+  if(error)return showPunchDialog({title:'Punch not allowed',message:error});
+  showPunchDialog({title:'Confirm '+action.label,message:'Are you sure you want to '+action.label.toLowerCase()+' now?',icon:action.icon,confirmAction:type});
+ }catch(error){
+  if(signInErrors.has(error.message)||error.message==='ACCOUNT_NOT_PROVISIONED')showAccountError(error);
+  else showPunchDialog({title:'Could not check status',message:'Unable to verify your attendance status. Please retry.'});
+ }
+}
 async function punch(type){
- if(busy)return;const site=assignedSite;if(!site)return note('No worksite is assigned to your account. Contact the owner.','error');
+ if(busy)return;const site=assignedSite;if(!site)return showPunchDialog({title:'Worksite unavailable',message:'No worksite is assigned to your account. Contact the owner.'});
  busy=true;document.querySelectorAll('[data-attendance]').forEach(b=>b.disabled=true);
  const requestId=crypto.randomUUID();
  try{
@@ -105,6 +171,7 @@ async function punch(type){
   await attendanceHistory();
  }catch(e){
   if(signInErrors.has(e.message)||e.message==='ACCOUNT_NOT_PROVISIONED')showAccountError(e);
+  else if(e.message==='INVALID_PUNCH_SEQUENCE')showPunchDialog({title:'Punch not allowed',message:'Your attendance status changed. Refresh and try a valid punch.'});
   else note(e.message,'error');
  }finally{
   busy=false;
@@ -113,6 +180,7 @@ async function punch(type){
  }
 }
 function clearAccountDetails(){
+ if(!$('punch-dialog').hidden)closePunchDialog();
  $('greeting-name').textContent='User!';
  assignedSite=null;managedSites=[];testLocationBypass=false;
  $('site').textContent='No worksite assigned';
@@ -209,7 +277,7 @@ window.addEventListener('pageshow',event=>{if(event.persisted)resumeClock()});
 
 $('managed-site').addEventListener('change',showManagedSite);
 $('radius').addEventListener('input',()=>{$('radius-output').textContent=$('radius').value+' feet'});
-document.querySelectorAll('[data-attendance]').forEach(b=>b.addEventListener('click',()=>punch(b.dataset.attendance)));
+document.querySelectorAll('[data-attendance]').forEach(b=>b.addEventListener('click',()=>requestPunch(b.dataset.attendance)));
 $('site-form').addEventListener('submit',async e=>{
  e.preventDefault();
  const id=$('managed-site').value;
