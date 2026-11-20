@@ -1,10 +1,12 @@
 import React from 'react';
-import {View,Text,ActivityIndicator,StyleSheet,Linking,Platform,Pressable,AppState} from 'react-native';
+import {View,Text,ActivityIndicator,StyleSheet,Linking,Pressable,AppState} from 'react-native';
 import {StatusBar} from 'expo-status-bar';
 import Constants from 'expo-constants';
 import * as Updates from 'expo-updates';
 import {WebView} from 'react-native-webview';
+import {SafeAreaProvider,SafeAreaView,initialWindowMetrics} from 'react-native-safe-area-context';
 
+const statusBackground='#10253c';
 const url=Constants.expoConfig?.extra?.clockUrl;
 const loginOrigins=Constants.expoConfig?.extra?.clockLoginOrigins??[];
 const configured=typeof url==='string'&&url.startsWith('https://');
@@ -44,8 +46,10 @@ export default function App(){
   return ()=>clearTimeout(timer);
  },[loading,error,reload]);
  const retry=()=>{setError('');setLoading(true);setReload(x=>x+1)};
- return <View style={styles.screen}>
-  <StatusBar style="light"/>
+ return <SafeAreaProvider initialMetrics={initialWindowMetrics}>
+  <SafeAreaView edges={['top']} style={styles.statusArea}>
+   <StatusBar style="light" hidden={false}/>
+   <View style={styles.screen}>
   <View style={styles.banner}>
    <Text style={styles.bannerText}>IRM TIME CLOCK · PREVIEW / NON-PAYROLL</Text>
    <Pressable accessibilityRole="button" accessibilityState={{expanded:showUpdate}} onPress={()=>setShowUpdate(value=>!value)}>
@@ -98,11 +102,14 @@ export default function App(){
      }}
     />
    </View>}
- </View>;
+   </View>
+  </SafeAreaView>
+ </SafeAreaProvider>;
 }
 const styles=StyleSheet.create({
- screen:{flex:1,backgroundColor:'#eef2f5',paddingTop:Platform.OS==='ios'?48:24},
- banner:{backgroundColor:'#10253c',padding:9,alignItems:'center'},
+ statusArea:{flex:1,backgroundColor:statusBackground},
+ screen:{flex:1,backgroundColor:'#eef2f5'},
+ banner:{backgroundColor:statusBackground,padding:9,alignItems:'center'},
  bannerText:{color:'#ffffff',fontWeight:'700',fontSize:11,letterSpacing:0.5},
  updateLink:{color:'#bde6e5',fontSize:12,paddingVertical:4},
  webContainer:{flex:1},webView:{flex:1,backgroundColor:'#eef2f5'},
